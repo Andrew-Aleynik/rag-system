@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: ragsystem
+
+services:
+  task:
+    cleanup_period_millis: 60000
+    permitted_count_synchronous_tasks: 1
+  index:
+    host: http://localhost.index
+    port: 10000
+
+
+

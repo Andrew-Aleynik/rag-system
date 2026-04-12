@@ -1,0 +1,14 @@
+LLMs:
+codellama:7b / codellama:7b-instruct
+deepseek-coder:6.7b / deepseek-coder:6.7b-instruct
+llama2:7b / llama2:7b-instruct
+qwen2.5:7b / qwen2.5:7b-instruct
+mistral:7b / mistral:7b-instruct
+dolphin-mistral:7b / dolphin-mistral:7b-instruct
+granite-code:3b / granite-code:8b
+
+Embeddings:
+nomic-embed-text
+bge-base-code
+gte-code
+
