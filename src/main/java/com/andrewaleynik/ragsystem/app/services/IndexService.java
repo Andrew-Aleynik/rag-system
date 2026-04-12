@@ -1,6 +1,7 @@
 package com.andrewaleynik.ragsystem.app.services;
 
 import com.andrewaleynik.ragsystem.chunkers.Chunker;
+import com.andrewaleynik.ragsystem.config.ChunkerConfig;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
 import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
 import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
@@ -27,7 +28,7 @@ import java.util.Optional;
 public class IndexService {
     private final DocumentRepository documentRepository;
     private final ChunkRepository chunkRepository;
-    private final Chunker chunker;
+    private final ChunkerConfig chunkerConfig;
     private final VectorStoreConfig vectorStoreConfig;
 
     public void indexProject(ProjectDomain project) {
@@ -37,6 +38,7 @@ public class IndexService {
         project.getDocuments().stream()
                 .map(documentData -> DocumentFactory.from(documentData).createDomain())
                 .forEach(document -> {
+                    Chunker chunker = chunkerConfig.getChunkerForExtension(document.getFileExtension());
                     List<ChunkDomain> chunks = null;
                     try {
                         chunks = chunker.chunkDocument(document);

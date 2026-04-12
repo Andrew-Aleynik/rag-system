@@ -11,7 +11,7 @@ import org.springframework.ai.vectorstore.qdrant.QdrantVectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Lazy;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -98,6 +98,7 @@ public class VectorStoreConfig {
     }
 
     @Bean
+    @Lazy
     public VectorStore defaultVectorStore() {
         log.info("Creating default VectorStore with collection: default_collection");
 

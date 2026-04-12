@@ -1,14 +1,35 @@
-package com.andrewaleynik.ragsystem.analyzers;
+package com.andrewaleynik.ragsystem.config;
 
 import com.andrewaleynik.universalparser.Analyzer;
 import com.andrewaleynik.universalparser.AnalyzerBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
-public class JavaAnalyzerConfig {
+@Configuration
+public class AnalyzerConfig {
 
-    private JavaAnalyzerConfig() {
+    public Analyzer getAnalyzerForExtension(String extension) {
+        switch (extension.toLowerCase()) {
+            case "java":
+                return createJavaFileAnalyzer();
+            default:
+                return createDefaultFileAnalyzer();
+        }
     }
 
-    public static Analyzer createJavaFileAnalyzer() {
+    @Bean(name = "defaultAnalyzer")
+    @Primary
+    public Analyzer createDefaultFileAnalyzer() {
+        return new AnalyzerBuilder()
+                .addLinear("all", "^", "$", all -> {
+                })
+                .build()
+                .get(0);
+    }
+
+    @Bean(name = "javaAnalyzer")
+    public Analyzer createJavaFileAnalyzer() {
         return new AnalyzerBuilder()
                 .addLinear("all", "^", "$", all -> all
                         .addLinear("declaration", // Package

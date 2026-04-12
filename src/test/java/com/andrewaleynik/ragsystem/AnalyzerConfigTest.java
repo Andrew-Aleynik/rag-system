@@ -1,7 +1,6 @@
 package com.andrewaleynik.ragsystem;
 
-import com.andrewaleynik.ragsystem.analyzers.DefaultAnalyzerConfig;
-import com.andrewaleynik.ragsystem.analyzers.JavaAnalyzerConfig;
+import com.andrewaleynik.ragsystem.config.AnalyzerConfig;
 import com.andrewaleynik.universalparser.Analyzer;
 import com.andrewaleynik.universalparser.Structure;
 import org.junit.jupiter.api.Assertions;
@@ -19,6 +18,8 @@ import java.util.stream.Stream;
 
 @Disabled("Manual test")
 class AnalyzerConfigTest {
+    private static final AnalyzerConfig analyzerConfig = new AnalyzerConfig();
+
     @ParameterizedTest
     @MethodSource("analyzersSamples")
     void testAnalyzerConfig(Analyzer analyzer, URL sampleResource) throws IOException {
@@ -39,15 +40,15 @@ class AnalyzerConfigTest {
 
     private static Stream<Arguments> analyzersSamples() {
         return Stream.of(
-                Arguments.of(JavaAnalyzerConfig.createJavaFileAnalyzer(),
+                Arguments.of(analyzerConfig.createJavaFileAnalyzer(),
                         AnalyzerConfigTest.class.getClassLoader().getResource("samples/sample1.java")),
-                Arguments.of(JavaAnalyzerConfig.createJavaFileAnalyzer(),
+                Arguments.of(analyzerConfig.createJavaFileAnalyzer(),
                         AnalyzerConfigTest.class.getClassLoader().getResource("samples/sample2.java")),
-                Arguments.of(JavaAnalyzerConfig.createJavaFileAnalyzer(),
+                Arguments.of(analyzerConfig.createJavaFileAnalyzer(),
                         AnalyzerConfigTest.class.getClassLoader().getResource("samples/sample3.java")),
-                Arguments.of(JavaAnalyzerConfig.createJavaFileAnalyzer(),
+                Arguments.of(analyzerConfig.createJavaFileAnalyzer(),
                         AnalyzerConfigTest.class.getClassLoader().getResource("samples/sample4.java")),
-                Arguments.of(DefaultAnalyzerConfig.createDefaultFileAnalyzer(),
+                Arguments.of(analyzerConfig.createDefaultFileAnalyzer(),
                         AnalyzerConfigTest.class.getClassLoader().getResource("samples/sample1.java"))
         );
     }
