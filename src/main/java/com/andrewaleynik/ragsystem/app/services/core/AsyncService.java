@@ -1,4 +1,4 @@
-package com.andrewaleynik.ragsystem.app.services;
+package com.andrewaleynik.ragsystem.app.services.core;
 
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
 import com.andrewaleynik.ragsystem.data.mappers.ProjectMapper;

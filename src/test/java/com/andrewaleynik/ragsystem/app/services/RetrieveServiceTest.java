@@ -1,6 +1,7 @@
 package com.andrewaleynik.ragsystem.app.services;
 
 import com.andrewaleynik.ragsystem.app.dto.project.request.RetrieveRequest;
+import com.andrewaleynik.ragsystem.app.services.rag.RetrieveService;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
 import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ChunkRepository;

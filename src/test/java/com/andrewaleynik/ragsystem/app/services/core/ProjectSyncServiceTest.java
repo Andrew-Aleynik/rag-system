@@ -1,7 +1,8 @@
-package com.andrewaleynik.ragsystem.app.services;
+package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.ProjectSyncRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectTaskStatusResponse;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectSyncRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
+import com.andrewaleynik.ragsystem.app.services.core.*;
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
 import com.andrewaleynik.ragsystem.data.mappers.ProjectMapper;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
@@ -63,7 +64,7 @@ class ProjectSyncServiceTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(projectEntity));
         doReturn(true).when(taskService).tryAddTask(eq(1L), any());
 
-        ProjectTaskStatusResponse response = projectSyncService.tryStartSyncProject(syncRequest);
+        TaskStatusResponse response = projectSyncService.tryStartSyncProject(syncRequest);
 
         assertEquals(TaskStatus.QUEUED, response.status());
         verify(projectRepository, atLeastOnce()).findById(1L);
@@ -75,7 +76,7 @@ class ProjectSyncServiceTest {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(projectEntity));
         doReturn(false).when(taskService).tryAddTask(eq(1L), any());
 
-        ProjectTaskStatusResponse response = projectSyncService.tryStartSyncProject(syncRequest);
+        TaskStatusResponse response = projectSyncService.tryStartSyncProject(syncRequest);
 
         assertEquals(TaskStatus.REJECTED, response.status());
         verify(projectRepository).findById(1L);
@@ -104,7 +105,7 @@ class ProjectSyncServiceTest {
         doNothing().when(gitRepositoryService).updateRepositoryInfo(any(ProjectDomain.class));
         when(projectRepository.save(any(ProjectJpaEntity.class))).thenReturn(projectEntity);
 
-        ProjectTaskStatusResponse response = projectSyncService.tryStartSyncProject(syncRequest);
+        TaskStatusResponse response = projectSyncService.tryStartSyncProject(syncRequest);
 
         assertEquals(TaskStatus.QUEUED, response.status());
         verify(taskService, timeout(2000)).updateStatus(1L, TaskStatus.DONE);

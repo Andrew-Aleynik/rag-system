@@ -1,7 +1,7 @@
-package com.andrewaleynik.ragsystem.app.services;
+package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.ProjectIndexServiceRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectTaskStatusResponse;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectIndexServiceRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.andrewaleynik.ragsystem.domains.Task;
@@ -20,7 +20,7 @@ public class ProjectIndexService {
     private final TaskService taskService;
     private final AsyncService asyncService;
 
-    public ProjectTaskStatusResponse tryStartIndexProject(ProjectIndexServiceRequest request) {
+    public TaskStatusResponse tryStartIndexProject(ProjectIndexServiceRequest request) {
         ProjectJpaEntity entity = projectRepository.findById(request.id())
                 .orElseThrow(() -> new EntityNotFoundException("Project not found: " + request.id()));
 
@@ -31,10 +31,10 @@ public class ProjectIndexService {
                 .build();
 
         if (!taskService.tryAddTask(entity.getId(), task)) {
-            return new ProjectTaskStatusResponse(TaskStatus.REJECTED);
+            return new TaskStatusResponse(TaskStatus.REJECTED);
         }
 
         asyncService.indexProject(entity.getId());
-        return new ProjectTaskStatusResponse(TaskStatus.QUEUED);
+        return new TaskStatusResponse(TaskStatus.QUEUED);
     }
 }

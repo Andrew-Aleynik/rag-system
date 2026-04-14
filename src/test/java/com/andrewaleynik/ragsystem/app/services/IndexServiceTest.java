@@ -1,5 +1,6 @@
 package com.andrewaleynik.ragsystem.app.services;
 
+import com.andrewaleynik.ragsystem.app.services.core.IndexService;
 import com.andrewaleynik.ragsystem.chunkers.Chunker;
 import com.andrewaleynik.ragsystem.config.ChunkerConfig;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;

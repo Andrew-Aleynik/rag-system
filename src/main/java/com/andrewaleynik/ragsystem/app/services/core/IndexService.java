@@ -1,4 +1,4 @@
-package com.andrewaleynik.ragsystem.app.services;
+package com.andrewaleynik.ragsystem.app.services.core;
 
 import com.andrewaleynik.ragsystem.chunkers.Chunker;
 import com.andrewaleynik.ragsystem.config.ChunkerConfig;

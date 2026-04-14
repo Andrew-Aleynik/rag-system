@@ -1,4 +1,4 @@
-package com.andrewaleynik.ragsystem.app.services;
+package com.andrewaleynik.ragsystem.app.services.core;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;

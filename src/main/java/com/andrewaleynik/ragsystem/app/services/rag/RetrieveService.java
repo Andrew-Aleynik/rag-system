@@ -1,4 +1,4 @@
-package com.andrewaleynik.ragsystem.app.services;
+package com.andrewaleynik.ragsystem.app.services.rag;
 
 import com.andrewaleynik.ragsystem.app.dto.project.request.RetrieveRequest;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;

@@ -1,4 +1,4 @@
-package com.andrewaleynik.ragsystem.app.dto.project.request;
+package com.andrewaleynik.ragsystem.app.dto.project.request.project;
 
 import jakarta.validation.constraints.NotBlank;
 

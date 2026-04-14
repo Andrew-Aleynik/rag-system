@@ -1,9 +1,9 @@
 package com.andrewaleynik.ragsystem.app.services;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.ProjectCreateRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.ProjectDeleteRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.ProjectRetrieveRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.ProjectUpdateRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectCreateRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectDeleteRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectRetrieveRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectUpdateRequest;
 import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectListResponse;
 import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectResponse;
 import com.andrewaleynik.ragsystem.domains.ProjectType;

@@ -1,5 +1,7 @@
 package com.andrewaleynik.ragsystem.app.services;
 
+import com.andrewaleynik.ragsystem.app.services.core.FileHashService;
+import com.andrewaleynik.ragsystem.app.services.core.GitRepositoryService;
 import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
 import com.andrewaleynik.ragsystem.data.mappers.DocumentMapper;
 import com.andrewaleynik.ragsystem.data.repositories.DocumentRepository;

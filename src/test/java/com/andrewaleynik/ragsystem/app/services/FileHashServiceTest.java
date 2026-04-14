@@ -1,5 +1,6 @@
 package com.andrewaleynik.ragsystem.app.services;
 
+import com.andrewaleynik.ragsystem.app.services.core.FileHashService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

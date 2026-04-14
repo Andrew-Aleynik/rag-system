@@ -1,4 +1,4 @@
-package com.andrewaleynik.ragsystem.app.services;
+package com.andrewaleynik.ragsystem.app.services.core;
 
 import com.andrewaleynik.ragsystem.domains.Task;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;

@@ -1,7 +1,7 @@
-package com.andrewaleynik.ragsystem.app.services;
+package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.ProjectSyncRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectTaskStatusResponse;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectSyncRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.andrewaleynik.ragsystem.domains.Task;
@@ -22,7 +22,7 @@ public class ProjectSyncService {
     private final TaskService taskService;
     private final AsyncService asyncService;
 
-    public ProjectTaskStatusResponse tryStartSyncProject(ProjectSyncRequest request) {
+    public TaskStatusResponse tryStartSyncProject(ProjectSyncRequest request) {
         ProjectJpaEntity entity = projectRepository.findById(request.id())
                 .orElseThrow(() -> new EntityNotFoundException("Project not found: " + request.id()));
 
@@ -34,10 +34,10 @@ public class ProjectSyncService {
                 .build();
 
         if (!taskService.tryAddTask(entity.getId(), task)) {
-            return new ProjectTaskStatusResponse(TaskStatus.REJECTED);
+            return new TaskStatusResponse(TaskStatus.REJECTED);
         }
 
         asyncService.syncProject(entity.getId());
-        return new ProjectTaskStatusResponse(TaskStatus.QUEUED);
+        return new TaskStatusResponse(TaskStatus.QUEUED);
     }
 }

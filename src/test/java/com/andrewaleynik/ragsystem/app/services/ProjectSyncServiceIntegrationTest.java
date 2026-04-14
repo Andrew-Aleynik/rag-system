@@ -1,7 +1,9 @@
 package com.andrewaleynik.ragsystem.app.services;
 
+import com.andrewaleynik.ragsystem.app.services.core.ProjectSyncService;
+import com.andrewaleynik.ragsystem.app.services.core.TaskService;
 import com.andrewaleynik.ragsystem.config.TestConfig;
-import com.andrewaleynik.ragsystem.app.dto.project.request.ProjectSyncRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectSyncRequest;
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.andrewaleynik.ragsystem.domains.ProjectType;

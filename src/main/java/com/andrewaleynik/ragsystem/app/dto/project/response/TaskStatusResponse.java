@@ -2,7 +2,7 @@ package com.andrewaleynik.ragsystem.app.dto.project.response;
 
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
 
-public record ProjectTaskStatusResponse(
+public record TaskStatusResponse(
         TaskStatus status
 ) {
 }
