@@ -1,8 +1,7 @@
 package com.andrewaleynik.ragsystem.data.entities;
 
+import com.andrewaleynik.ragsystem.data.CollectionData;
 import com.andrewaleynik.ragsystem.data.DocumentData;
-import com.andrewaleynik.ragsystem.data.ProjectData;
-import com.andrewaleynik.ragsystem.domains.ProjectType;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -10,36 +9,30 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity(name = "Project")
-@Table(name = "projects")
+@Entity(name = "Collection")
+@Table(name = "collections")
 @Data
-public class ProjectJpaEntity implements ProjectData {
+public class CollectionJpaEntity implements CollectionData {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(length = 500, nullable = false, updatable = false)
-    private String url;
-    @Column(nullable = false)
-    private String defaultBranch;
     @Column
     private LocalDateTime createdAt;
     @Column
     private LocalDateTime updatedAt;
-    @Column(length = 1000)
-    private String localPath;
-    @Column(nullable = false)
-    private String name;
-    @Column(nullable = false)
-    private ProjectType type;
-    @Column
-    private LocalDateTime syncedAt;
     @Column
     private LocalDateTime indexedAt;
     @Column
+    private String name;
+    @Column
     private Boolean active;
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "project_id")
-    private List<DocumentJpaEntity> documents = new ArrayList<>();
+    @ManyToMany(targetEntity = DocumentJpaEntity.class, fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "collection_documents",
+            joinColumns = @JoinColumn(name = "collection_id"),
+            inverseJoinColumns = @JoinColumn(name = "document_id")
+    )
+    private List<DocumentData> documents;
 
     @Override
     public List<DocumentData> getDocuments() {

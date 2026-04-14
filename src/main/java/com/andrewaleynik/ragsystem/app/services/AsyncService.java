@@ -65,7 +65,7 @@ public class AsyncService {
             taskService.acquireSemaphore(TaskType.INDEXING);
             acquired = true;
             taskService.updateStatus(projectId, TaskStatus.IN_PROCESS);
-            indexService.indexProject(domain);
+            indexService.indexNamedDocumentContainer(domain);
             domain.setIndexedAt(LocalDateTime.now());
             saveUpdatedProject(domain, entity);
             taskService.updateStatus(projectId, TaskStatus.DONE);

@@ -3,9 +3,8 @@ package com.andrewaleynik.ragsystem.data;
 import com.andrewaleynik.ragsystem.domains.ProjectType;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
-public interface ProjectData {
+public interface ProjectData extends DocumentContainer, Named {
     void setId(Long id);
 
     Long getId();
@@ -26,10 +25,6 @@ public interface ProjectData {
 
     String getDefaultBranch();
 
-    void setName(String name);
-
-    String getName();
-
     void setCreatedAt(LocalDateTime createdAt);
 
     LocalDateTime getCreatedAt();
@@ -46,11 +41,7 @@ public interface ProjectData {
 
     LocalDateTime getIndexedAt();
 
-    void setDocuments(List<DocumentData> documents);
+    void setActive(Boolean active);
 
-    void addDocument(DocumentData document);
-
-    void removeDocument(DocumentData document);
-
-    List<DocumentData> getDocuments();
+    Boolean getActive();
 }

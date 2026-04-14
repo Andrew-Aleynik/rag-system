@@ -1,6 +1,6 @@
 package com.andrewaleynik.ragsystem.config;
 
-import com.andrewaleynik.ragsystem.domains.ProjectDomain;
+import com.andrewaleynik.ragsystem.data.Named;
 import io.qdrant.client.QdrantClient;
 import io.qdrant.client.QdrantGrpcClient;
 import lombok.RequiredArgsConstructor;
@@ -50,34 +50,19 @@ public class VectorStoreConfig {
         return new QdrantClient(builder.build());
     }
 
-    public VectorStore getOrCreateVectorStore(ProjectDomain projectDomain) {
-        String projectName = projectDomain.getName();
-        String collectionName = sanitizeCollectionName(projectDomain.getName());
+    public VectorStore getOrCreateVectorStore(Named named) {
+        String projectName = named.getName();
+        String collectionName = sanitizeCollectionName(named.getName());
 
         return projectVectorStores.computeIfAbsent(projectName, id -> {
             log.info("Creating new VectorStore for project: {} (collection: {})",
-                    projectDomain.getName(), collectionName);
+                    named.getName(), collectionName);
 
             return QdrantVectorStore.builder(qdrantClient(), embeddingModel)
                     .collectionName(collectionName)
                     .initializeSchema(true)
                     .build();
         });
-    }
-
-    public VectorStore getVectorStore(String projectId) {
-        return projectVectorStores.get(projectId);
-    }
-
-    public void removeVectorStore(String projectId) {
-        VectorStore removed = projectVectorStores.remove(projectId);
-        if (removed != null) {
-            log.info("Removed VectorStore for project: {}", projectId);
-        }
-    }
-
-    public boolean hasVectorStore(String projectId) {
-        return projectVectorStores.containsKey(projectId);
     }
 
     public void clearAll() {

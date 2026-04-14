@@ -47,8 +47,8 @@ public class DocumentJpaEntity implements DocumentData {
 
     @Override
     public void addChunk(ChunkData chunk) {
-        if (chunk instanceof ChunkJpaEntity) {
-            chunks.add((ChunkJpaEntity) chunk);
+        if (chunk instanceof ChunkJpaEntity chunkJpaEntity) {
+            chunks.add(chunkJpaEntity);
         } else {
             throw new IllegalArgumentException("Expected ChunkJpaEntity");
         }

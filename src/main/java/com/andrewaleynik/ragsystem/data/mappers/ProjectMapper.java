@@ -37,5 +37,6 @@ public class ProjectMapper implements Mapper<ProjectJpaEntity, ProjectDomain> {
         entity.setSyncedAt(domain.getSyncedAt());
         entity.setIndexedAt(domain.getIndexedAt());
         entity.setDocuments(domain.getDocuments());
+        entity.setActive(domain.getActive());
     }
 }

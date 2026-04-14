@@ -20,6 +20,7 @@ public class ProjectFactory implements Factory<ProjectDomain, ProjectJpaEntity> 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime indexedAt;
+    private Boolean active;
     private List<DocumentData> documents;
 
     public ProjectFactory withId(Long id) {
@@ -72,6 +73,11 @@ public class ProjectFactory implements Factory<ProjectDomain, ProjectJpaEntity> 
         return this;
     }
 
+    public ProjectFactory withActive(Boolean active) {
+        this.active = active;
+        return this;
+    }
+
     public static ProjectFactory from(ProjectData data) {
         ProjectFactory factory = new ProjectFactory()
                 .withId(data.getId())
@@ -83,6 +89,7 @@ public class ProjectFactory implements Factory<ProjectDomain, ProjectJpaEntity> 
                 .withCreatedAt(data.getCreatedAt())
                 .withUpdatedAt(data.getUpdatedAt())
                 .withIndexedAt(data.getIndexedAt())
+                .withActive(data.getActive())
                 .withDocuments(data.getDocuments());
         factory.validate();
         return factory;
@@ -128,7 +135,8 @@ public class ProjectFactory implements Factory<ProjectDomain, ProjectJpaEntity> 
         data.setCreatedAt(createdAt);
         data.setUpdatedAt(updatedAt);
         data.setIndexedAt(indexedAt);
-        data.setDocuments(documents);
+        data.setActive(active);
         data.setLocalPath(localPath);
+        data.setDocuments(documents);
     }
 }

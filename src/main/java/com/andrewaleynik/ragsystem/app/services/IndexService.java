@@ -3,12 +3,13 @@ package com.andrewaleynik.ragsystem.app.services;
 import com.andrewaleynik.ragsystem.chunkers.Chunker;
 import com.andrewaleynik.ragsystem.config.ChunkerConfig;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
+import com.andrewaleynik.ragsystem.data.DocumentContainer;
+import com.andrewaleynik.ragsystem.data.Named;
 import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
 import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ChunkRepository;
 import com.andrewaleynik.ragsystem.data.repositories.DocumentRepository;
 import com.andrewaleynik.ragsystem.domains.ChunkDomain;
-import com.andrewaleynik.ragsystem.domains.ProjectDomain;
 import com.andrewaleynik.ragsystem.exceptions.ChunkingException;
 import com.andrewaleynik.ragsystem.factories.ChunkFactory;
 import com.andrewaleynik.ragsystem.factories.DocumentFactory;
@@ -31,15 +32,15 @@ public class IndexService {
     private final ChunkerConfig chunkerConfig;
     private final VectorStoreConfig vectorStoreConfig;
 
-    public void indexProject(ProjectDomain project) {
-        VectorStore projectStore = vectorStoreConfig.getOrCreateVectorStore(project);
+    public <T extends Named & DocumentContainer> void indexNamedDocumentContainer(T namedDocumentContainer) {
+        VectorStore projectStore = vectorStoreConfig.getOrCreateVectorStore(namedDocumentContainer);
         List<ChunkJpaEntity> toSave = new ArrayList<>();
         List<ChunkJpaEntity> toRemove = new ArrayList<>();
-        project.getDocuments().stream()
+        namedDocumentContainer.getDocuments().stream()
                 .map(documentData -> DocumentFactory.from(documentData).createDomain())
                 .forEach(document -> {
                     Chunker chunker = chunkerConfig.getChunkerForExtension(document.getFileExtension());
-                    List<ChunkDomain> chunks = null;
+                    List<ChunkDomain> chunks;
                     try {
                         chunks = chunker.chunkDocument(document);
                     } catch (ChunkingException | IOException e) {

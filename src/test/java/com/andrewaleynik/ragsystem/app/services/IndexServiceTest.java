@@ -130,7 +130,7 @@ class IndexServiceTest {
         ArgumentCaptor<List<ChunkJpaEntity>> saveCaptor = ArgumentCaptor.forClass(List.class);
         ArgumentCaptor<List<Document>> vectorAddCaptor = ArgumentCaptor.forClass(List.class);
 
-        indexService.indexProject(project);
+        indexService.indexNamedDocumentContainer(project);
 
         verify(chunkerConfig).getChunkerForExtension("java");
         verify(chunkRepository).findAllByDocumentId(document.getId());
@@ -141,7 +141,7 @@ class IndexServiceTest {
 
         List<ChunkJpaEntity> savedChunks = saveCaptor.getValue();
         assertThat(savedChunks).hasSize(3);
-        assertThat(savedChunks.get(0).getIndex()).isEqualTo(0);
+        assertThat(savedChunks.get(0).getIndex()).isZero();
         assertThat(savedChunks.get(0).getContent()).isEqualTo("public class Main {");
         assertThat(savedChunks.get(0).getHash()).isEqualTo("hash1");
 
@@ -188,7 +188,7 @@ class IndexServiceTest {
         ArgumentCaptor<List<String>> deleteCaptor = ArgumentCaptor.forClass(List.class);
 
         // When
-        indexService.indexProject(project);
+        indexService.indexNamedDocumentContainer(project);
 
         // Then
         verify(vectorStore).add(anyList());
@@ -235,7 +235,7 @@ class IndexServiceTest {
         ArgumentCaptor<List<ChunkJpaEntity>> saveCaptor = ArgumentCaptor.forClass(List.class);
 
         // When
-        indexService.indexProject(project);
+        indexService.indexNamedDocumentContainer(project);
 
         // Then
         verify(chunker, times(2)).chunkDocument(any(DocumentDomain.class));
@@ -262,7 +262,7 @@ class IndexServiceTest {
         when(documentRepository.save(documentCaptor.capture())).thenAnswer(inv -> inv.getArgument(0));
 
         // When
-        indexService.indexProject(project);
+        indexService.indexNamedDocumentContainer(project);
 
         // Then
         DocumentJpaEntity savedDocument = documentCaptor.getValue();
@@ -296,7 +296,7 @@ class IndexServiceTest {
         when(documentRepository.save(any(DocumentJpaEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // When
-        indexService.indexProject(project);
+        indexService.indexNamedDocumentContainer(project);
 
         // Then
         verify(chunkerConfig).getChunkerForExtension("java");
