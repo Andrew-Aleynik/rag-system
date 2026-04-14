@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface ChunkRepository extends CrudRepository<ChunkJpaEntity, Long> {
     List<ChunkJpaEntity> findAllByDocumentId(Long documentId);
+
+    List<ChunkJpaEntity> findAllByVectorIdIn(List<String> vectorIds);
 }
