@@ -1,13 +1,14 @@
 package com.andrewaleynik.ragsystem.app.services;
 
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectSyncRequest;
 import com.andrewaleynik.ragsystem.app.services.core.ProjectSyncService;
 import com.andrewaleynik.ragsystem.app.services.core.TaskService;
 import com.andrewaleynik.ragsystem.config.TestConfig;
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectSyncRequest;
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.andrewaleynik.ragsystem.domains.ProjectType;
 import com.andrewaleynik.ragsystem.domains.Task;
+import com.andrewaleynik.ragsystem.domains.TaskId;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
 import com.andrewaleynik.ragsystem.factories.ProjectFactory;
 import org.junit.jupiter.api.Test;
@@ -69,12 +70,14 @@ class ProjectSyncServiceIntegrationTest {
 
         projectSyncService.tryStartSyncProject(request);
 
-        assertTrue(taskService.contains(entity.getId()));
+        TaskId taskId = taskService.getTaskId(entity);
+
+        assertTrue(taskService.contains(taskId));
 
         await().atMost(Duration.ofSeconds(30))
                 .pollInterval(Duration.ofSeconds(2))
                 .until(() -> {
-                    Optional<Task> task = taskService.getTask(entity.getId());
+                    Optional<Task> task = taskService.getTask(taskId);
                     if (task.isEmpty()) return false;
 
                     TaskStatus status = task.get().getStatus();

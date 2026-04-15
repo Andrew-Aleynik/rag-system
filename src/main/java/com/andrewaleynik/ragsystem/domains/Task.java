@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 @Data
 @Builder
 public class Task {
-    private Long id;
+    private TaskId id;
     private TaskType type;
     private TaskStatus status;
     private LocalDateTime updatedAt;

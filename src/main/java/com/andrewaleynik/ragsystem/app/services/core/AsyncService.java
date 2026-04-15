@@ -6,10 +6,7 @@ import com.andrewaleynik.ragsystem.data.mappers.CollectionMapper;
 import com.andrewaleynik.ragsystem.data.mappers.ProjectMapper;
 import com.andrewaleynik.ragsystem.data.repositories.CollectionRepository;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
-import com.andrewaleynik.ragsystem.domains.CollectionDomain;
-import com.andrewaleynik.ragsystem.domains.ProjectDomain;
-import com.andrewaleynik.ragsystem.domains.TaskStatus;
-import com.andrewaleynik.ragsystem.domains.TaskType;
+import com.andrewaleynik.ragsystem.domains.*;
 import com.andrewaleynik.ragsystem.factories.CollectionFactory;
 import com.andrewaleynik.ragsystem.factories.ProjectFactory;
 import jakarta.persistence.EntityNotFoundException;
@@ -35,25 +32,25 @@ public class AsyncService {
 
     @Async("threadPoolTaskExecutor")
     @Transactional
-    public void syncProject(Long projectId) {
-        ProjectJpaEntity entity = projectRepository.findById(projectId)
-                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + projectId));
+    public void syncProject(TaskId taskId) {
+        ProjectJpaEntity entity = projectRepository.findById(taskId.entityId())
+                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + taskId.entityId()));
         ProjectDomain domain = ProjectFactory.from(entity).createDomain();
         boolean acquired = false;
         try {
             taskService.acquireSemaphore(TaskType.SYNCING);
             acquired = true;
-            taskService.updateStatus(projectId, TaskStatus.IN_PROCESS);
+            taskService.updateStatus(taskId, TaskStatus.IN_PROCESS);
             gitRepositoryService.syncProject(domain);
             gitRepositoryService.updateRepositoryInfo(domain);
             domain.setSyncedAt(LocalDateTime.now());
             saveUpdatedProject(domain, entity);
-            taskService.updateStatus(projectId, TaskStatus.DONE);
+            taskService.updateStatus(taskId, TaskStatus.DONE);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            taskService.updateStatus(projectId, TaskStatus.FAILED);
+            taskService.updateStatus(taskId, TaskStatus.FAILED);
         } catch (GitAPIException | IOException e) {
-            taskService.updateStatus(projectId, TaskStatus.FAILED);
+            taskService.updateStatus(taskId, TaskStatus.FAILED);
         } finally {
             if (acquired) {
                 taskService.releaseSemaphore(TaskType.SYNCING);
@@ -63,22 +60,22 @@ public class AsyncService {
 
     @Async("threadPoolTaskExecutor")
     @Transactional
-    public void indexProject(Long projectId) {
-        ProjectJpaEntity entity = projectRepository.findById(projectId)
-                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + projectId));
+    public void indexProject(TaskId taskId) {
+        ProjectJpaEntity entity = projectRepository.findById(taskId.entityId())
+                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + taskId.entityId()));
         ProjectDomain domain = ProjectFactory.from(entity).createDomain();
         boolean acquired = false;
         try {
             taskService.acquireSemaphore(TaskType.INDEXING);
             acquired = true;
-            taskService.updateStatus(projectId, TaskStatus.IN_PROCESS);
+            taskService.updateStatus(taskId, TaskStatus.IN_PROCESS);
             indexService.indexNamedDocumentContainer(domain);
             domain.setIndexedAt(LocalDateTime.now());
             saveUpdatedProject(domain, entity);
-            taskService.updateStatus(projectId, TaskStatus.DONE);
+            taskService.updateStatus(taskId, TaskStatus.DONE);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            taskService.updateStatus(projectId, TaskStatus.FAILED);
+            taskService.updateStatus(taskId, TaskStatus.FAILED);
         } finally {
             if (acquired) {
                 taskService.releaseSemaphore(TaskType.INDEXING);
@@ -88,22 +85,22 @@ public class AsyncService {
 
     @Async("threadPoolTaskExecutor")
     @Transactional
-    public void indexCollection(Long collectionId) {
-        CollectionJpaEntity entity = collectionRepository.findById(collectionId)
-                .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + collectionId));
+    public void indexCollection(TaskId taskId) {
+        CollectionJpaEntity entity = collectionRepository.findById(taskId.entityId())
+                .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + taskId.entityId()));
         CollectionDomain domain = CollectionFactory.from(entity).createDomain();
         boolean acquired = false;
         try {
             taskService.acquireSemaphore(TaskType.INDEXING);
             acquired = true;
-            taskService.updateStatus(collectionId, TaskStatus.IN_PROCESS);
+            taskService.updateStatus(taskId, TaskStatus.IN_PROCESS);
             indexService.indexNamedDocumentContainer(domain);
             domain.setIndexedAt(LocalDateTime.now());
             saveUpdatedCollection(domain, entity);
-            taskService.updateStatus(collectionId, TaskStatus.DONE);
+            taskService.updateStatus(taskId, TaskStatus.DONE);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            taskService.updateStatus(collectionId, TaskStatus.FAILED);
+            taskService.updateStatus(taskId, TaskStatus.FAILED);
         } finally {
             if (acquired) {
                 taskService.releaseSemaphore(TaskType.INDEXING);

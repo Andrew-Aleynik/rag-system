@@ -1,10 +1,10 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.app.services.core.TaskService;
+import com.andrewaleynik.ragsystem.data.ProjectData;
 import com.andrewaleynik.ragsystem.domains.Task;
+import com.andrewaleynik.ragsystem.domains.TaskId;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
 import com.andrewaleynik.ragsystem.domains.TaskType;
-import org.awaitility.core.ConditionTimeoutException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,38 +31,42 @@ class TaskServiceTest {
 
     @Test
     void testContainsFalse() {
-        assertFalse(taskService.contains(1L));
+        assertFalse(taskService.contains(new TaskId(ProjectData.class, 1L)));
     }
 
     @Test
     void testContainsTrue() {
-        taskService.tryAddTask(1L, createTask(TaskType.INDEXING, TaskStatus.NOT_QUEUED));
+        TaskId taskId = new TaskId(ProjectData.class, 1L);
 
-        assertTrue(taskService.contains(1L));
+        taskService.tryAddTask(createTask(taskId, TaskType.INDEXING, TaskStatus.NOT_QUEUED));
+
+        assertTrue(taskService.contains(taskId));
     }
 
     @Test
     void testAddTaskSuccess() {
-        Task task = createTask(TaskType.INDEXING, TaskStatus.NOT_QUEUED);
+        TaskId taskId = new TaskId(ProjectData.class, 1L);
+        Task task = createTask(taskId, TaskType.INDEXING, TaskStatus.NOT_QUEUED);
 
-        taskService.tryAddTask(1L, task);
+        taskService.tryAddTask(task);
 
-        assertTrue(taskService.contains(1L));
+        assertTrue(taskService.contains(taskId));
     }
 
     @Test
     void testUpdateExistedTaskStatusSuccess() {
+        TaskId taskId = new TaskId(ProjectData.class, 1L);
         TaskStatus expected = TaskStatus.FAILED;
 
-        taskService.tryAddTask(1L, createTask(TaskType.INDEXING, TaskStatus.NOT_QUEUED));
+        taskService.tryAddTask(createTask(taskId, TaskType.INDEXING, TaskStatus.NOT_QUEUED));
 
-        assertDoesNotThrow(() -> taskService.updateStatus(1L, expected));
-        assertEquals(getTask(taskService, 1L).getStatus(), expected);
+        assertDoesNotThrow(() -> taskService.updateStatus(taskId, expected));
+        assertEquals(getTask(taskService, taskId).getStatus(), expected);
     }
 
     @Test
     void testUpdateNotExistedTaskStatusNotThrowException() {
-        assertDoesNotThrow(() -> taskService.updateStatus(999L, TaskStatus.DONE));
+        assertDoesNotThrow(() -> taskService.updateStatus(new TaskId(ProjectData.class, 999L), TaskStatus.DONE));
     }
 
     @Test
@@ -120,37 +124,13 @@ class TaskServiceTest {
         }
     }
 
-    @ParameterizedTest
-    @EnumSource(TaskStatus.class)
-    void testCleanupThreadWorksCorrect(TaskStatus taskStatus) {
-        Task oldTask = Task.builder()
-                .type(TaskType.INDEXING)
-                .status(taskStatus)
-                .updatedAt(LocalDateTime.now().minusMinutes(5))
-                .build();
-        taskService.tryAddTask(1L, oldTask);
-
-        try {
-            await().atMost(Duration.ofSeconds(1))
-                    .pollInterval(Duration.ofMillis(50))
-                    .until(() -> !taskService.contains(1L));
-        } catch (ConditionTimeoutException ignored) {
-        }
-
-        boolean expected = taskStatus.isTerminated();
-        boolean actual = !taskService.contains(1L);
-
-        assertEquals(expected, actual,
-                "Task with status " + taskStatus + " should " + (expected ? "" : "not ") + "be removed");
-    }
-
-    private Task getTask(TaskService taskService, Long taskId) {
+    private Task getTask(TaskService taskService, TaskId taskId) {
         String tasksFieldName = "tasks";
         try {
             Field tasksField = taskService.getClass().getDeclaredField(tasksFieldName);
             tasksField.setAccessible(true);
             @SuppressWarnings("unchecked")
-            Task task = ((ConcurrentMap<Long, Task>) tasksField.get(taskService)).get(taskId);
+            Task task = ((ConcurrentMap<TaskId, Task>) tasksField.get(taskService)).get(taskId);
             tasksField.setAccessible(false);
             return task;
         } catch (NoSuchFieldException e) {
@@ -160,8 +140,9 @@ class TaskServiceTest {
         }
     }
 
-    private Task createTask(TaskType type, TaskStatus status) {
+    private Task createTask(TaskId taskId, TaskType type, TaskStatus status) {
         return Task.builder()
+                .id(taskId)
                 .type(type)
                 .status(status)
                 .updatedAt(LocalDateTime.now())

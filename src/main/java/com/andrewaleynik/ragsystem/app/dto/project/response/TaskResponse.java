@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Builder
 public record TaskResponse(
-        Long id,
+        String id,
         TaskType type,
         TaskStatus status,
         LocalDateTime updatedAt

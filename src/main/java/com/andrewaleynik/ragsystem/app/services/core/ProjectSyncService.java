@@ -5,6 +5,7 @@ import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.andrewaleynik.ragsystem.domains.Task;
+import com.andrewaleynik.ragsystem.domains.TaskId;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
 import com.andrewaleynik.ragsystem.domains.TaskType;
 import jakarta.persistence.EntityNotFoundException;
@@ -26,18 +27,19 @@ public class ProjectSyncService {
         ProjectJpaEntity entity = projectRepository.findById(request.id())
                 .orElseThrow(() -> new EntityNotFoundException("Project not found: " + request.id()));
 
-
+        TaskId taskId = taskService.getTaskId(entity);
         Task task = Task.builder()
+                .id(taskId)
                 .type(TaskType.SYNCING)
                 .status(TaskStatus.QUEUED)
                 .updatedAt(LocalDateTime.now())
                 .build();
 
-        if (!taskService.tryAddTask(entity.getId(), task)) {
+        if (!taskService.tryAddTask(task)) {
             return new TaskStatusResponse(TaskStatus.REJECTED);
         }
 
-        asyncService.syncProject(entity.getId());
+        asyncService.syncProject(task.getId());
         return new TaskStatusResponse(TaskStatus.QUEUED);
     }
 }

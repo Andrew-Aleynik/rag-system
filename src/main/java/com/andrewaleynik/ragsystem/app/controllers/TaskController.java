@@ -38,7 +38,7 @@ public class TaskController {
 
     private TaskResponse createTaskResponse(Task task) {
         return TaskResponse.builder()
-                .id(task.getId())
+                .id(task.getId().entityClass().getSimpleName() + "_" + task.getId().entityId())
                 .type(task.getType())
                 .status(task.getStatus())
                 .updatedAt(task.getUpdatedAt())

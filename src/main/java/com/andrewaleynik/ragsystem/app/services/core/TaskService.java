@@ -1,6 +1,10 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
+import com.andrewaleynik.ragsystem.data.CollectionData;
+import com.andrewaleynik.ragsystem.data.Entity;
+import com.andrewaleynik.ragsystem.data.ProjectData;
 import com.andrewaleynik.ragsystem.domains.Task;
+import com.andrewaleynik.ragsystem.domains.TaskId;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
 import com.andrewaleynik.ragsystem.domains.TaskType;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +18,7 @@ import java.util.concurrent.Semaphore;
 
 @Service
 public class TaskService {
-    private final ConcurrentMap<Long, Task> tasks = new ConcurrentHashMap<>();
+    private final ConcurrentMap<TaskId, Task> tasks = new ConcurrentHashMap<>();
     private final ConcurrentMap<TaskType, Semaphore> taskTypesSemaphores = new ConcurrentHashMap<>();
     private final long cleanupPeriodMillis;
 
@@ -34,20 +38,19 @@ public class TaskService {
         return new ArrayList<>(tasks.values());
     }
 
-    public boolean contains(Long id) {
+    public boolean contains(TaskId id) {
         return tasks.containsKey(id);
     }
 
-    public boolean tryAddTask(Long projectId, Task task) {
-        task.setId(projectId);
-        return tasks.putIfAbsent(projectId, task) == null;
+    public <T extends Entity> boolean tryAddTask(Task task) {
+        return tasks.putIfAbsent(task.getId(), task) == null;
     }
 
-    public Optional<Task> getTask(Long id) {
+    public Optional<Task> getTask(TaskId id) {
         return Optional.ofNullable(tasks.get(id));
     }
 
-    public void updateStatus(Long id, TaskStatus newStatus) {
+    public void updateStatus(TaskId id, TaskStatus newStatus) {
         tasks.computeIfPresent(id, (k, task) -> {
             task.setStatus(newStatus);
             return task;
@@ -62,6 +65,16 @@ public class TaskService {
         taskTypesSemaphores.get(taskType).release();
     }
 
+    public <T extends Entity> TaskId getTaskId(T entity) {
+        if (entity instanceof ProjectData projectData) {
+            return new TaskId(ProjectData.class, projectData.getId());
+        } else if (entity instanceof CollectionData collectionData) {
+            return new TaskId(CollectionData.class, collectionData.getId());
+        } else {
+            throw new IllegalArgumentException("Wrong entity type: " + entity.getClass().getName());
+        }
+    }
+
     private Runnable removingTerminatedTasksRunnable() {
         return () -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -71,7 +84,7 @@ public class TaskService {
                     Thread.currentThread().interrupt();
                 }
 
-                for (Map.Entry<Long, Task> entry : tasks.entrySet()) {
+                for (Map.Entry<TaskId, Task> entry : tasks.entrySet()) {
                     Task task = entry.getValue();
                     if (task.getStatus().isTerminated()
                             && task.getUpdatedAt().plusMinutes(1).isBefore(LocalDateTime.now())) {
