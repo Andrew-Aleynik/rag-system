@@ -1,9 +1,9 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectIndexRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.request.collection.CollectionIndexRequest;
 import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
-import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
-import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
+import com.andrewaleynik.ragsystem.data.entities.CollectionJpaEntity;
+import com.andrewaleynik.ragsystem.data.repositories.CollectionRepository;
 import com.andrewaleynik.ragsystem.domains.Task;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
 import com.andrewaleynik.ragsystem.domains.TaskType;
@@ -15,14 +15,14 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
-public class ProjectIndexService {
-    private final ProjectRepository projectRepository;
+public class CollectionIndexService {
+    private final CollectionRepository collectionRepository;
     private final TaskService taskService;
     private final AsyncService asyncService;
 
-    public TaskStatusResponse tryStartIndexProject(ProjectIndexRequest request) {
-        ProjectJpaEntity entity = projectRepository.findById(request.id())
-                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + request.id()));
+    public TaskStatusResponse tryStartIndexCollection(CollectionIndexRequest request) {
+        CollectionJpaEntity entity = collectionRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
 
         Task task = Task.builder()
                 .type(TaskType.INDEXING)
@@ -34,7 +34,7 @@ public class ProjectIndexService {
             return new TaskStatusResponse(TaskStatus.REJECTED);
         }
 
-        asyncService.indexProject(entity.getId());
+        asyncService.indexCollection(entity.getId());
         return new TaskStatusResponse(TaskStatus.QUEUED);
     }
 }

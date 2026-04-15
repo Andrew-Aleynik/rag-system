@@ -36,6 +36,8 @@ public class DocumentJpaEntity implements DocumentData {
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     @JoinColumn(name = "chunk_id", updatable = false)
     private List<ChunkJpaEntity> chunks = new ArrayList<>();
+    @ManyToMany(mappedBy = "documents", fetch = FetchType.LAZY)
+    private List<CollectionJpaEntity> collections = new ArrayList<>();
 
     @Override
     public void setChunks(List<ChunkData> chunks) {

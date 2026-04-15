@@ -2,9 +2,10 @@ package com.andrewaleynik.ragsystem.app.services.core;
 
 import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectSyncRequest;
 import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
-import com.andrewaleynik.ragsystem.app.services.core.*;
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
+import com.andrewaleynik.ragsystem.data.mappers.CollectionMapper;
 import com.andrewaleynik.ragsystem.data.mappers.ProjectMapper;
+import com.andrewaleynik.ragsystem.data.repositories.CollectionRepository;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.andrewaleynik.ragsystem.domains.ProjectDomain;
 import com.andrewaleynik.ragsystem.domains.ProjectType;
@@ -29,6 +30,8 @@ import static org.mockito.Mockito.*;
 class ProjectSyncServiceTest {
     @Mock
     private ProjectRepository projectRepository;
+    @Mock
+    private CollectionRepository collectionRepository;
     private TaskService taskService;
     @Mock
     private GitRepositoryService gitRepositoryService;
@@ -42,8 +45,11 @@ class ProjectSyncServiceTest {
     @BeforeEach
     void setUp() {
         ProjectMapper projectMapper = new ProjectMapper();
+        CollectionMapper collectionMapper = new CollectionMapper();
         taskService = spy(new TaskService(60000, 1));
-        AsyncService asyncService = spy(new AsyncService(projectRepository, projectMapper, taskService, gitRepositoryService, indexService));
+        AsyncService asyncService = spy(
+                new AsyncService(projectRepository, collectionRepository, projectMapper, collectionMapper, taskService,
+                        gitRepositoryService, indexService));
         projectSyncService = new ProjectSyncService(
                 projectRepository, taskService, asyncService
         );

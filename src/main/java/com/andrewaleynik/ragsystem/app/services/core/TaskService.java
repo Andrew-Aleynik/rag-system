@@ -7,9 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Semaphore;
@@ -32,11 +30,16 @@ public class TaskService {
         thread.start();
     }
 
+    public List<Task> getTasks() {
+        return new ArrayList<>(tasks.values());
+    }
+
     public boolean contains(Long id) {
         return tasks.containsKey(id);
     }
 
-    boolean tryAddTask(Long projectId, Task task) {
+    public boolean tryAddTask(Long projectId, Task task) {
+        task.setId(projectId);
         return tasks.putIfAbsent(projectId, task) == null;
     }
 

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 
 public record CollectionUpdateRequest(
         @NotBlank Long id,
-        String name
+        String name,
+        Boolean active
 ) {
 }
