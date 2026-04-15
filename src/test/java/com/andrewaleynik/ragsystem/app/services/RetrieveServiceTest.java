@@ -3,6 +3,7 @@ package com.andrewaleynik.ragsystem.app.services;
 import com.andrewaleynik.ragsystem.app.dto.project.request.RetrieveRequest;
 import com.andrewaleynik.ragsystem.app.services.rag.RetrieveService;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
+import com.andrewaleynik.ragsystem.data.ProjectData;
 import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ChunkRepository;
 import com.andrewaleynik.ragsystem.domains.ChunkDomain;
@@ -235,7 +236,7 @@ class RetrieveServiceTest {
         List<ChunkDomain> result = retrieveService.retrieveChunks(emptyProjectsRequest);
 
         assertThat(result).isEmpty();
-        verify(vectorStoreConfig, never()).getOrCreateVectorStore(any());
+        verify(vectorStoreConfig, never()).getOrCreateVectorStore(any(ProjectData.class));
         verify(chunkRepository, never()).findAllByVectorIdIn(any());
     }
 
@@ -246,7 +247,7 @@ class RetrieveServiceTest {
         List<ChunkDomain> result = retrieveService.retrieveChunks(nullQueryRequest);
 
         assertThat(result).isEmpty();
-        verify(vectorStoreConfig, never()).getOrCreateVectorStore(any());
+        verify(vectorStoreConfig, never()).getOrCreateVectorStore(any(ProjectData.class));
     }
 
     @Test
@@ -256,7 +257,7 @@ class RetrieveServiceTest {
         List<ChunkDomain> result = retrieveService.retrieveChunks(emptyQueryRequest);
 
         assertThat(result).isEmpty();
-        verify(vectorStoreConfig, never()).getOrCreateVectorStore(any());
+        verify(vectorStoreConfig, never()).getOrCreateVectorStore(any(ProjectData.class));
     }
 
     @Test
@@ -266,7 +267,7 @@ class RetrieveServiceTest {
         List<ChunkDomain> result = retrieveService.retrieveChunks(blankQueryRequest);
 
         assertThat(result).isEmpty();
-        verify(vectorStoreConfig, never()).getOrCreateVectorStore(any());
+        verify(vectorStoreConfig, never()).getOrCreateVectorStore(any(ProjectData.class));
     }
 
     @Test

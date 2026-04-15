@@ -2,11 +2,7 @@ package com.andrewaleynik.ragsystem.data;
 
 import java.time.LocalDateTime;
 
-public interface CollectionData extends DocumentContainer, Named {
-    Long getId();
-
-    void setId(Long id);
-
+public interface CollectionData extends DocumentContainer, Named, Entity {
     LocalDateTime getCreatedAt();
 
     void setCreatedAt(LocalDateTime createdAt);

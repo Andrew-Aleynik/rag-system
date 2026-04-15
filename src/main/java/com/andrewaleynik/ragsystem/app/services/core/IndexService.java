@@ -3,8 +3,7 @@ package com.andrewaleynik.ragsystem.app.services.core;
 import com.andrewaleynik.ragsystem.chunkers.Chunker;
 import com.andrewaleynik.ragsystem.config.ChunkerConfig;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
-import com.andrewaleynik.ragsystem.data.DocumentContainer;
-import com.andrewaleynik.ragsystem.data.Named;
+import com.andrewaleynik.ragsystem.data.*;
 import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
 import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
 import com.andrewaleynik.ragsystem.data.repositories.ChunkRepository;
@@ -32,11 +31,11 @@ public class IndexService {
     private final ChunkerConfig chunkerConfig;
     private final VectorStoreConfig vectorStoreConfig;
 
-    public <T extends Named & DocumentContainer> void indexNamedDocumentContainer(T namedDocumentContainer) {
-        VectorStore projectStore = vectorStoreConfig.getOrCreateVectorStore(namedDocumentContainer);
+    public <T extends Named & DocumentContainer & Entity> void indexNamedDocumentContainer(T namedDocumentContainerEntity) {
+        VectorStore projectStore = getOrCreateVectorStore(namedDocumentContainerEntity);
         List<ChunkJpaEntity> toSave = new ArrayList<>();
         List<ChunkJpaEntity> toRemove = new ArrayList<>();
-        namedDocumentContainer.getDocuments().stream()
+        namedDocumentContainerEntity.getDocuments().stream()
                 .map(documentData -> DocumentFactory.from(documentData).createDomain())
                 .forEach(document -> {
                     Chunker chunker = chunkerConfig.getChunkerForExtension(document.getFileExtension());
@@ -78,5 +77,16 @@ public class IndexService {
 
         projectStore.delete(toRemove.stream().map(ChunkJpaEntity::getVectorId).toList());
         chunkRepository.deleteAllById(toRemove.stream().map(ChunkJpaEntity::getId).toList());
+    }
+
+    private <T extends Named & DocumentContainer & Entity> VectorStore getOrCreateVectorStore(T namedDocumentContainerEntity) {
+        if (namedDocumentContainerEntity instanceof ProjectData projectData) {
+            return vectorStoreConfig.getOrCreateVectorStore(projectData);
+        } else if (namedDocumentContainerEntity instanceof CollectionData collectionData) {
+            return vectorStoreConfig.getOrCreateVectorStore(collectionData);
+        } else {
+            throw new IllegalArgumentException("Wrong type of namedDocumentContainerEntity: "
+                    + namedDocumentContainerEntity.getClass());
+        }
     }
 }

@@ -4,11 +4,7 @@ import com.andrewaleynik.ragsystem.domains.ProjectType;
 
 import java.time.LocalDateTime;
 
-public interface ProjectData extends DocumentContainer, Named {
-    void setId(Long id);
-
-    Long getId();
-
+public interface ProjectData extends DocumentContainer, Named, Entity {
     void setType(ProjectType projectType);
 
     ProjectType getType();

@@ -1,6 +1,7 @@
 package com.andrewaleynik.ragsystem.config;
 
-import com.andrewaleynik.ragsystem.data.Named;
+import com.andrewaleynik.ragsystem.data.CollectionData;
+import com.andrewaleynik.ragsystem.data.ProjectData;
 import io.qdrant.client.QdrantClient;
 import io.qdrant.client.QdrantGrpcClient;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ public class VectorStoreConfig {
     @Value("${qdrant.api-key:}")
     private String apiKey;
 
-    private final Map<String, VectorStore> projectVectorStores = new ConcurrentHashMap<>();
+    private final Map<String, VectorStore> vectorStores = new ConcurrentHashMap<>();
 
     @Bean
     public QdrantClient qdrantClient() {
@@ -50,13 +51,12 @@ public class VectorStoreConfig {
         return new QdrantClient(builder.build());
     }
 
-    public VectorStore getOrCreateVectorStore(Named named) {
-        String projectName = named.getName();
-        String collectionName = sanitizeCollectionName(named.getName());
+    public VectorStore getOrCreateVectorStore(ProjectData projectData) {
+        String collectionName = "project_" + projectData.getId();
 
-        return projectVectorStores.computeIfAbsent(projectName, id -> {
-            log.info("Creating new VectorStore for project: {} (collection: {})",
-                    named.getName(), collectionName);
+        return vectorStores.computeIfAbsent(collectionName, id -> {
+            log.info("Creating new VectorStore for project: {} (store: {})",
+                    projectData.getName(), collectionName);
 
             return QdrantVectorStore.builder(qdrantClient(), embeddingModel)
                     .collectionName(collectionName)
@@ -65,21 +65,18 @@ public class VectorStoreConfig {
         });
     }
 
-    public void clearAll() {
-        projectVectorStores.clear();
-        log.info("Cleared all VectorStore instances from cache");
-    }
+    public VectorStore getOrCreateVectorStore(CollectionData collectionData) {
+        String collectionName = "collection_" + collectionData.getId();
 
-    private String sanitizeCollectionName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            return "default_collection";
-        }
+        return vectorStores.computeIfAbsent(collectionName, id -> {
+            log.info("Creating new VectorStore for collection: {} (store: {})",
+                    collectionData.getName(), collectionName);
 
-        return name.toLowerCase()
-                .trim()
-                .replaceAll("[^a-z0-9_-]", "_")
-                .replaceAll("_+", "_")
-                .replaceAll("^_|_$", "");
+            return QdrantVectorStore.builder(qdrantClient(), embeddingModel)
+                    .collectionName(collectionName)
+                    .initializeSchema(true)
+                    .build();
+        });
     }
 
     @Bean

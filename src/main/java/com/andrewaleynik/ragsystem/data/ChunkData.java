@@ -2,11 +2,7 @@ package com.andrewaleynik.ragsystem.data;
 
 import java.time.LocalDateTime;
 
-public interface ChunkData {
-    void setId(Long id);
-
-    Long getId();
-
+public interface ChunkData extends Entity {
     void setVectorId(String vectorId);
 
     String getVectorId();

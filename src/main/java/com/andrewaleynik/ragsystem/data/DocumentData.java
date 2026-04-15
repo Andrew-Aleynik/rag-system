@@ -3,11 +3,7 @@ package com.andrewaleynik.ragsystem.data;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface DocumentData {
-    void setId(Long id);
-
-    Long getId();
-
+public interface DocumentData extends Entity{
     void setProjectId(Long projectId);
 
     Long getProjectId();
