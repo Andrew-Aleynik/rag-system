@@ -100,8 +100,7 @@ public class CollectionController {
         log.info("Updating collection with id: {}", id);
         CollectionUpdateRequest updateRequest = new CollectionUpdateRequest(
                 id,
-                request.name(),
-                request.active()
+                request.name()
         );
         CollectionResponse response = collectionCrudService.updateCollection(updateRequest);
         return ResponseEntity.ok(response);
@@ -121,6 +120,38 @@ public class CollectionController {
         CollectionDeleteRequest request = new CollectionDeleteRequest(id);
         collectionCrudService.deleteCollection(request);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/activate")
+    @Operation(summary = "Activate collection", description = "Activate a collection for RAG by its ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Collection activate successfully"),
+            @ApiResponse(responseCode = "404", description = "Collection not found")
+    })
+    public ResponseEntity<Void> activateCollection(
+            @Parameter(description = "Collection ID", required = true)
+            @PathVariable Long id
+    ) {
+        log.info("Activate collection with id: {}", id);
+        CollectionActivateRequest request = new CollectionActivateRequest(id);
+        collectionCrudService.activateCollection(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/deactivate")
+    @Operation(summary = "Deactivate collection", description = "Deactivate a collection for RAG by its ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Collection deactivate successfully"),
+            @ApiResponse(responseCode = "404", description = "Collection not found")
+    })
+    public ResponseEntity<Void> deactivateCollection(
+            @Parameter(description = "Collection ID", required = true)
+            @PathVariable Long id
+    ) {
+        log.info("Deactivate collection with id: {}", id);
+        CollectionDeactivateRequest request = new CollectionDeactivateRequest(id);
+        collectionCrudService.deactivateCollection(request);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/documents")

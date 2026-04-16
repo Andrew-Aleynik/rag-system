@@ -1,13 +1,11 @@
 package com.andrewaleynik.ragsystem.app.services;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.collection.CollectionCreateRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.collection.CollectionDeleteRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.collection.CollectionRetrieveRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.collection.CollectionUpdateRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.request.collection.*;
 import com.andrewaleynik.ragsystem.app.dto.project.response.CollectionListResponse;
 import com.andrewaleynik.ragsystem.app.dto.project.response.CollectionResponse;
 import com.andrewaleynik.ragsystem.app.dto.project.response.DocumentListResponse;
 import com.andrewaleynik.ragsystem.app.dto.project.response.DocumentResponse;
+import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
 import com.andrewaleynik.ragsystem.data.CollectionData;
 import com.andrewaleynik.ragsystem.data.DocumentData;
 import com.andrewaleynik.ragsystem.data.entities.CollectionJpaEntity;
@@ -35,6 +33,7 @@ public class CollectionCrudService {
     private final CollectionRepository collectionRepository;
     private final CollectionMapper collectionMapper;
     private final DocumentRepository documentRepository;
+    private final VectorStoreConfig vectorStoreConfig;
 
     public CollectionResponse createCollection(CollectionCreateRequest request) {
         CollectionJpaEntity entity = new CollectionFactory()
@@ -73,10 +72,26 @@ public class CollectionCrudService {
     }
 
     public void deleteCollection(CollectionDeleteRequest request) {
-        if (!collectionRepository.existsById(request.id())) {
-            throw new EntityNotFoundException("Collection not found: " + request.id());
-        }
+        CollectionJpaEntity collection = collectionRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
+        vectorStoreConfig.deleteVectorStore(collection);
         collectionRepository.deleteById(request.id());
+    }
+
+    @Transactional
+    public void activateCollection(CollectionActivateRequest request) {
+        CollectionJpaEntity collection = collectionRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
+        collection.setActive(true);
+        collectionRepository.save(collection);
+    }
+
+    @Transactional
+    public void deactivateCollection(CollectionDeactivateRequest request) {
+        CollectionJpaEntity collection = collectionRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
+        collection.setActive(false);
+        collectionRepository.save(collection);
     }
 
     @Transactional
@@ -165,6 +180,7 @@ public class CollectionCrudService {
                 .updatedAt(collectionData.getUpdatedAt())
                 .name(collectionData.getName())
                 .indexedAt(collectionData.getIndexedAt())
+                .active(collectionData.getActive())
                 .build();
     }
 

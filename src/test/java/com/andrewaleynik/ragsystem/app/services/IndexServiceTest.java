@@ -72,7 +72,7 @@ class IndexServiceTest {
         project = new ProjectFactory()
                 .withId(projectId)
                 .withUrl("url")
-                .withType(ProjectType.GITHUB)
+                .withType(ProjectType.GIT)
                 .withDefaultBranch("main")
                 .withName("Test Project")
                 .createDomain();

@@ -53,7 +53,7 @@ class ProjectSyncServiceTest {
                 .withId(1L)
                 .withName("test-project")
                 .withUrl("https://github.com/test/test.git")
-                .withType(ProjectType.GITHUB)
+                .withType(ProjectType.GIT)
                 .withDefaultBranch("master")
                 .withLocalPath("/tmp/test")
                 .createEntity();

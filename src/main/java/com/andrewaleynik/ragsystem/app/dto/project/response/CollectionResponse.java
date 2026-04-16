@@ -10,6 +10,7 @@ public record CollectionResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         LocalDateTime indexedAt,
-        String name
+        String name,
+        Boolean active
 ) {
 }

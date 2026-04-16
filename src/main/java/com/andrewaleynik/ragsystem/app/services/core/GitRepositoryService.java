@@ -108,12 +108,12 @@ public class GitRepositoryService {
                 Path fullPath = project.getLocalPathAsPath().resolve(relativePath);
 
                 DocumentJpaEntity document = existingDocs.getOrDefault(
-                        relativePath,
-                        createNewDocument(project.getId(), relativePath, fullPath)
+                        fullPath.toString(),
+                        createNewDocument(project.getId(), fullPath)
                 );
 
                 updateDocumentIfChanged(document, fullPath);
-                updatedDocs.put(relativePath, document);
+                updatedDocs.put(fullPath.toString(), document);
             }
         }
 
@@ -148,12 +148,12 @@ public class GitRepositoryService {
         return SUPPORTED_EXTENSIONS.contains(extension.toLowerCase());
     }
 
-    private DocumentJpaEntity createNewDocument(Long projectId, String relativePath, Path fullPath) {
+    private DocumentJpaEntity createNewDocument(Long projectId, Path fullPath) {
         String fileName = fullPath.getFileName().toString();
 
         return new DocumentFactory()
                 .withProjectId(projectId)
-                .withLocalPath(relativePath)
+                .withLocalPath(fullPath.toString())
                 .withFileName(fileName)
                 .withFileExtension(getFileExtension(fileName))
                 .withFileHash("")

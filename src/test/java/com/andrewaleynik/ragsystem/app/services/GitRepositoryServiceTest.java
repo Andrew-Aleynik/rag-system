@@ -54,7 +54,7 @@ class GitRepositoryServiceTest {
         try {
             ProjectDomain domain = new ProjectFactory()
                     .withUrl(repoUri)
-                    .withType(ProjectType.GITHUB)
+                    .withType(ProjectType.GIT)
                     .withName(localName)
                     .withDefaultBranch("master")
                     .withLocalPath(tempDir.toString())
@@ -71,7 +71,7 @@ class GitRepositoryServiceTest {
 
         ProjectDomain domain = new ProjectFactory()
                 .withUrl(repoUri)
-                .withType(ProjectType.GITHUB)
+                .withType(ProjectType.GIT)
                 .withName("some_project")
                 .withDefaultBranch("master")
                 .withLocalPath(tempDir.toString())
@@ -87,7 +87,7 @@ class GitRepositoryServiceTest {
         ProjectDomain project = new ProjectFactory()
                 .withId(1L)
                 .withDefaultBranch("master")
-                .withType(ProjectType.GITHUB)
+                .withType(ProjectType.GIT)
                 .withName("test-project")
                 .withLocalPath(tempDir.toString())
                 .withUrl("https://github.com/test/test")
@@ -106,7 +106,7 @@ class GitRepositoryServiceTest {
             docs.forEach(saved::add);
             DocumentJpaEntity entity = saved.get(0);
             return saved.size() == 1
-                    && entity.getLocalPath().equals("src/Test.java")
+                    && entity.getLocalPath().equals(tempDir.toString() + "/src/Test.java")
                     && entity.getFileName().equals("Test.java")
                     && entity.getFileExtension().equals("java")
                     && entity.getFileHash().equals("mock-hash-123");

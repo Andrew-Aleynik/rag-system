@@ -1,8 +1,6 @@
 package com.andrewaleynik.ragsystem.app.dto.project.request.project;
 
-import java.util.List;
-
-public record ProjectRetrieveRequest(
+public record ProjectDeactivateRequest(
         Long id
 ) {
 }

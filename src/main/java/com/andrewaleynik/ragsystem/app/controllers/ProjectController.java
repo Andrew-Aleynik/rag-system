@@ -55,11 +55,9 @@ public class ProjectController {
                     content = @Content(schema = @Schema(implementation = ProjectListResponse.class))),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<ProjectListResponse> getAllProjects(
-            @Valid ProjectRetrieveRequest request
-    ) {
+    public ResponseEntity<ProjectListResponse> getAllProjects() {
         log.info("Retrieving all projects");
-        ProjectListResponse response = projectCrudService.retrieveProjects(request);
+        ProjectListResponse response = projectCrudService.retrieveProjects();
         return ResponseEntity.ok(response);
     }
 
@@ -75,14 +73,10 @@ public class ProjectController {
             @PathVariable Long id
     ) {
         log.info("Retrieving project with id: {}", id);
-        ProjectRetrieveRequest request = new ProjectRetrieveRequest();
-        ProjectListResponse response = projectCrudService.retrieveProjects(request);
+        ProjectRetrieveRequest request = new ProjectRetrieveRequest(id);
+        ProjectResponse response = projectCrudService.retrieveProject(request);
 
-        if (response.projects().isEmpty()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(response.projects().get(0));
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
@@ -121,6 +115,38 @@ public class ProjectController {
         log.info("Deleting project with id: {}", id);
         ProjectDeleteRequest request = new ProjectDeleteRequest(id);
         projectCrudService.deleteProject(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/activate")
+    @Operation(summary = "Activate project", description = "Activate a project for RAG by its ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Project activate successfully"),
+            @ApiResponse(responseCode = "404", description = "Project not found")
+    })
+    public ResponseEntity<Void> activateProject(
+            @Parameter(description = "Project ID", required = true)
+            @PathVariable Long id
+    ) {
+        log.info("Activate project with id: {}", id);
+        ProjectActivateRequest request = new ProjectActivateRequest(id);
+        projectCrudService.activateProject(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/deactivate")
+    @Operation(summary = "Deactivate project", description = "Deactivate a project for RAG by its ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Project deactivate successfully"),
+            @ApiResponse(responseCode = "404", description = "Project not found")
+    })
+    public ResponseEntity<Void> deactivateProject(
+            @Parameter(description = "Project ID", required = true)
+            @PathVariable Long id
+    ) {
+        log.info("Deactivate project with id: {}", id);
+        ProjectDeactivateRequest request = new ProjectDeactivateRequest(id);
+        projectCrudService.deactivateProject(request);
         return ResponseEntity.noContent().build();
     }
 

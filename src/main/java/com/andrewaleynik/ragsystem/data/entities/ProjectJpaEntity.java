@@ -11,35 +11,68 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity(name = "Project")
-@Table(name = "projects")
+@Table(name = "projects", indexes = {
+        @Index(name = "idx_project_url", columnList = "url"),
+        @Index(name = "idx_project_active", columnList = "active")
+})
 @Data
 public class ProjectJpaEntity implements ProjectData {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(length = 500, nullable = false, updatable = false)
+
+    @Column(length = 500, nullable = false, updatable = false, unique = true)
     private String url;
-    @Column(nullable = false)
+
+    @Column(length = 100)
     private String defaultBranch;
-    @Column
+
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    @Column
+
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
-    @Column(length = 1000)
+
+    @Column(length = 1000, unique = true)
     private String localPath;
-    @Column(nullable = false)
+
+    @Column(nullable = false, unique = true)
     private String name;
+
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private ProjectType type;
+
     @Column
     private LocalDateTime syncedAt;
+
     @Column
     private LocalDateTime indexedAt;
-    @Column
+
+    @Column(nullable = false)
     private Boolean active;
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "project_id")
+
+    @OneToMany(mappedBy = "projectId", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DocumentJpaEntity> documents = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = LocalDateTime.now();
+        }
+        if (active == null) {
+            active = true;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     @Override
     public List<DocumentData> getDocuments() {

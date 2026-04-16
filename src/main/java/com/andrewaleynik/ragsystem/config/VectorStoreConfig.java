@@ -79,6 +79,32 @@ public class VectorStoreConfig {
         });
     }
 
+    public void deleteVectorStore(ProjectData projectData) {
+        String collectionName = "project_" + projectData.getId();
+        deleteCollection(collectionName);
+    }
+
+    public void deleteVectorStore(CollectionData collectionData) {
+        String collectionName = "collection_" + collectionData.getId();
+        deleteCollection(collectionName);
+    }
+
+    private void deleteCollection(String collectionName) {
+        try {
+            QdrantClient client = qdrantClient();
+
+            if (Boolean.TRUE.equals(client.collectionExistsAsync(collectionName).get())) {
+                client.deleteCollectionAsync(collectionName).get();
+                vectorStores.remove(collectionName);
+                log.info("Collection deleted: {}", collectionName);
+            } else {
+                log.debug("Collection does not exist, nothing to delete: {}", collectionName);
+            }
+        } catch (Exception e) {
+            log.error("Failed to delete collection {}: {}", collectionName, e.getMessage());
+        }
+    }
+
     @Bean
     @Lazy
     public VectorStore defaultVectorStore() {

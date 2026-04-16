@@ -63,7 +63,7 @@ class RetrieveServiceTest {
                 .withId(projectId1)
                 .withName("Test Project 1")
                 .withUrl("url")
-                .withType(ProjectType.GITHUB)
+                .withType(ProjectType.GIT)
                 .withDefaultBranch("main")
                 .createDomain();
 
@@ -71,7 +71,7 @@ class RetrieveServiceTest {
                 .withId(projectId2)
                 .withName("Test Project 2")
                 .withUrl("url")
-                .withType(ProjectType.GITHUB)
+                .withType(ProjectType.GIT)
                 .withDefaultBranch("main")
                 .createDomain();
 

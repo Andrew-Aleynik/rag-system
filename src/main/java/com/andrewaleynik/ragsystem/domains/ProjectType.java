@@ -4,10 +4,7 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public enum ProjectType {
-    GITHUB("github"),
-    GITLAB("gitlab"),
-    BITBUCKET("bitbucket");
-
+    GIT("git");
     private final String name;
 
     public static ProjectType fromName(String name) {

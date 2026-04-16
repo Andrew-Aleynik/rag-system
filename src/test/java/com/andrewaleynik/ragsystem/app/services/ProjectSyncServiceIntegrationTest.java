@@ -13,11 +13,13 @@ import com.andrewaleynik.ragsystem.domains.TaskStatus;
 import com.andrewaleynik.ragsystem.factories.ProjectFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -32,8 +34,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @Testcontainers
-@Import(TestConfig.class)
+@Import({TestConfig.class})
 class ProjectSyncServiceIntegrationTest {
+    @MockitoBean
+    private EmbeddingModel embeddingModel;
     @Container
     static PostgreSQLContainer<?> postgreSQLContainer = new PostgreSQLContainer<>("postgres:15")
             .withDatabaseName("testdb")
@@ -60,7 +64,7 @@ class ProjectSyncServiceIntegrationTest {
     void testTryStartSyncProject(@TempDir Path tempDir) {
         ProjectJpaEntity entity = new ProjectFactory()
                 .withUrl("https://github.com/githubtraining/hellogitworld")
-                .withType(ProjectType.GITHUB)
+                .withType(ProjectType.GIT)
                 .withName("some_project")
                 .withDefaultBranch("master")
                 .withLocalPath(tempDir.toString())

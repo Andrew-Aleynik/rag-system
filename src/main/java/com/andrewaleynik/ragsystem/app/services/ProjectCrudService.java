@@ -1,11 +1,12 @@
 package com.andrewaleynik.ragsystem.app.services;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectCreateRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectDeleteRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectRetrieveRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectUpdateRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.request.project.*;
+import com.andrewaleynik.ragsystem.app.dto.project.response.DocumentListResponse;
+import com.andrewaleynik.ragsystem.app.dto.project.response.DocumentResponse;
 import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectListResponse;
 import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectResponse;
+import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
+import com.andrewaleynik.ragsystem.data.DocumentData;
 import com.andrewaleynik.ragsystem.data.ProjectData;
 import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
 import com.andrewaleynik.ragsystem.data.mappers.ProjectMapper;
@@ -14,17 +15,20 @@ import com.andrewaleynik.ragsystem.domains.ProjectDomain;
 import com.andrewaleynik.ragsystem.factories.ProjectFactory;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.StreamSupport;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProjectCrudService {
     private final ProjectRepository projectRepository;
     private final ProjectMapper projectMapper;
+    private final VectorStoreConfig vectorStoreConfig;
 
     public ProjectResponse createProject(ProjectCreateRequest request) {
         ProjectJpaEntity entity = new ProjectFactory()
@@ -37,7 +41,13 @@ public class ProjectCrudService {
         return createProjectResponse(entity);
     }
 
-    public ProjectListResponse retrieveProjects(ProjectRetrieveRequest request) {
+    public ProjectResponse retrieveProject(ProjectRetrieveRequest request) {
+        ProjectJpaEntity project = projectRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + request.id()));
+        return createProjectResponse(project);
+    }
+
+    public ProjectListResponse retrieveProjects() {
         Iterable<ProjectJpaEntity> entities = projectRepository.findAll();
         List<ProjectResponse> projects = StreamSupport.stream(entities.spliterator(), false)
                 .map(this::createProjectResponse)
@@ -68,11 +78,42 @@ public class ProjectCrudService {
         return createProjectResponse(saved);
     }
 
+    @Transactional(readOnly = true)
+    public DocumentListResponse getProjectDocuments(Long projectId) {
+        ProjectJpaEntity project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new EntityNotFoundException("Project " + projectId + " not found"));
+
+        List<DocumentData> documents = project.getDocuments();
+
+        return new DocumentListResponse(
+                documents.size(),
+                documents.stream()
+                        .map(this::createDocumentResponse)
+                        .toList()
+        );
+    }
+
     public void deleteProject(ProjectDeleteRequest request) {
-        if (!projectRepository.existsById(request.id())) {
-            throw new EntityNotFoundException("Project not found: " + request.id());
-        }
+        ProjectJpaEntity project = projectRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + request.id()));
+        vectorStoreConfig.deleteVectorStore(project);
         projectRepository.deleteById(request.id());
+    }
+
+    @Transactional
+    public void activateProject(ProjectActivateRequest request) {
+        ProjectJpaEntity project = projectRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + request.id()));
+        project.setActive(true);
+        projectRepository.save(project);
+    }
+
+    @Transactional
+    public void deactivateProject(ProjectDeactivateRequest request) {
+        ProjectJpaEntity project = projectRepository.findById(request.id())
+                .orElseThrow(() -> new EntityNotFoundException("Project not found: " + request.id()));
+        project.setActive(false);
+        projectRepository.save(project);
     }
 
     private ProjectResponse createProjectResponse(ProjectData projectData) {
@@ -87,6 +128,21 @@ public class ProjectCrudService {
                 .type(projectData.getType())
                 .syncedAt(projectData.getSyncedAt())
                 .indexedAt(projectData.getIndexedAt())
+                .active(projectData.getActive())
+                .build();
+    }
+
+    private DocumentResponse createDocumentResponse(DocumentData documentData) {
+        return DocumentResponse.builder()
+                .id(documentData.getId())
+                .projectId(documentData.getProjectId())
+                .createdAt(documentData.getCreatedAt())
+                .updatedAt(documentData.getUpdatedAt())
+                .indexedAt(documentData.getIndexedAt())
+                .localPath(documentData.getLocalPath())
+                .fileName(documentData.getFileName())
+                .fileExtension(documentData.getFileExtension())
+                .fileHash(documentData.getFileHash())
                 .build();
     }
 }

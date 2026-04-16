@@ -19,6 +19,7 @@ public record ProjectResponse(
         String name,
         ProjectType type,
         LocalDateTime syncedAt,
-        LocalDateTime indexedAt
+        LocalDateTime indexedAt,
+        Boolean active
 ) {
 }
