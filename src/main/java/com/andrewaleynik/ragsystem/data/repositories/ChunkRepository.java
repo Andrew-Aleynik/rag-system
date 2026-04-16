@@ -11,4 +11,9 @@ public interface ChunkRepository extends CrudRepository<ChunkJpaEntity, Long> {
     List<ChunkJpaEntity> findAllByDocumentId(Long documentId);
 
     List<ChunkJpaEntity> findAllByVectorIdIn(List<String> vectorIds);
+
+    List<ChunkJpaEntity> findByDocumentIdAndStructural(Long documentId, boolean structural);
+
+    List<ChunkJpaEntity> findByDocumentIdAndStructuralAndIndexBetween(Long documentId, boolean structural,
+                                                                      int startIndex, int endIndex);
 }
