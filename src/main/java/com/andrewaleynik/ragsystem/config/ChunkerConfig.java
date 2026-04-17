@@ -16,11 +16,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ChunkerConfig {
     private final AnalyzerConfig analyzerConfig;
-    @Value("${chunker.max_size:700}")
+    @Value("${config.chunker.max_size:700}")
     private int maxSize;
-    @Value("${chunker.min_payload_size:200}")
+    @Value("${config.chunker.min_payload_size:200}")
     private int minPayloadSize;
-    @Value("${chunker.overlap:0.2}")
+    @Value("${config.chunker.overlap:0.2}")
     private float overlap;
 
     public Chunker getChunkerForExtension(String extension) {

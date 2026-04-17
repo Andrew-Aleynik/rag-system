@@ -1,14 +1,63 @@
 spring:
   application:
     name: ragsystem
-
+  ai:
+    vectorstore:
+      qdrant:
+        api-key: ${QDRANT_API_KEY:}
+        host: ${QDRANT_HOST:localhost}
+        port: ${QDRANT_PORT:6334}
+        use-tls: ${QDRANT_USE_TLS:false}
+    embedding:
+      provider: ${EMBED_PROVIDER:openai}
+    openai:
+      api-key: ${OPENAI_API_KEY:sk-default-key}
+      embedding:
+        options:
+          model: ${OPENAI_EMBED_MODEL:text-embedding-3-small}
+          dimensions: ${OPENAI_EMBED_SIZE:1536}
+          encoding-format: float
+    ollama:
+      base-url: ${OLLAMA_URL:http://localhost:11434}
+      embedding:
+        options:
+          model: ${OLLAMA_EMBED_MODEL:nomic-embed-text}
+  datasource:
+    url: ${POSTGRESQL_URL:jdbc:postgresql://localhost:5432/ragsystem}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 20
+    open-in-view: false
 services:
   task:
-    cleanup_period_millis: 60000
-    permitted_count_synchronous_tasks: 1
-  index:
-    host: http://localhost.index
-    port: 10000
+    cleanup_period_millis: ${TASK_CLEANUP_PERIOD:60000}
+    permitted_count_synchronous_tasks: ${TASK_SIMULTANEOUS:1}
+  retrieve:
+    top_k: ${RETRIEVE_TOP_K:5}
+    similarity_threshold: ${RETRIEVE_SIMILARITY_THRESHOLD:0.7}
+    max_results: ${RETRIEVE_MAX_COUNT:10}
+    context_chunks_before: ${RETRIEVE_RADIUS:2}
+    context_chunks_after: ${RETRIEVE_RADIUS:2}
+config:
+  chunker:
+    max_size: ${CHUNK_MAX_SIZE:700}
+    min_payload_size: ${CHUNK_MIN_PAYLOAD:200}
+    overlap: ${CHUNK_OVERLAP:0.2}
+
 
 
 

@@ -23,9 +23,9 @@ public class EmbeddingModelConfig {
     @ConditionalOnProperty(name = "spring.ai.embedding.provider", havingValue = "openai", matchIfMissing = true)
     @Primary
     public EmbeddingModel openAiEmbeddingModel(
-            @Value("${spring.ai.openai.model.embedding:text-embedding-3-small}") String modelName,
-            @Value("${spring.ai.openai.dimensions:1536}") int dimensions,
-            @Value("${spring.ai.openai.encoding_format:float}") String encodingFormat,
+            @Value("${spring.ai.openai.embedding.options.model:text-embedding-3-small}") String modelName,
+            @Value("${spring.ai.openai.embedding.options.dimensions:1536}") int dimensions,
+            @Value("${spring.ai.openai.embedding.options.encoding_format:float}") String encodingFormat,
             @Value("${spring.ai.openai.api-key:sk-default-key}") String apiKey) {
 
         String resolvedApiKey = System.getenv("OPENAI_API_KEY");
@@ -57,8 +57,8 @@ public class EmbeddingModelConfig {
     @Bean(name = "customOllamaEmbeddingModel")
     @ConditionalOnProperty(name = "spring.ai.embedding.provider", havingValue = "ollama")
     public EmbeddingModel ollamaEmbeddingModel(
-            @Value("${ollama.model:nomic-embed-text}") String modelName,
-            @Value("${ollama.url:http://localhost:11434}") String ollamaUrl) {
+            @Value("${spring.ai.ollama.embedding.options.model:nomic-embed-text}") String modelName,
+            @Value("${spring.ai.ollama.base-url:http://localhost:11434}") String ollamaUrl) {
 
         log.info("Initializing Ollama embedding model: {} at {}", modelName, ollamaUrl);
 

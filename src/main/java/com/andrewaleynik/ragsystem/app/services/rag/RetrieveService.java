@@ -29,19 +29,19 @@ public class RetrieveService {
     private final VectorStoreConfig vectorStoreConfig;
     private final ChunkRepository chunkRepository;
 
-    @Value("${retrieve.top_k:5}")
+    @Value("${services.retrieve.top_k:5}")
     private int topK;
 
-    @Value("${retrieve.similarity_threshold:0.7}")
+    @Value("${services.retrieve.similarity_threshold:0.7}")
     private double similarityThreshold;
 
-    @Value("${retrieve.max_results:10}")
+    @Value("${services.retrieve.max_results:10}")
     private int maxResults;
 
-    @Value("${retrieve.context_chunks_before:2}")
+    @Value("${services.retrieve.context_chunks_before:2}")
     private int contextChunksBefore;
 
-    @Value("${retrieve.context_chunks_after:2}")
+    @Value("${services.retrieve.context_chunks_after:2}")
     private int contextChunksAfter;
 
     public RetrieveResponse retrieveChunks(RetrieveRequest request) {

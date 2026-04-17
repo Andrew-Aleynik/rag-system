@@ -24,16 +24,16 @@ public class VectorStoreConfig {
 
     private final EmbeddingModel embeddingModel;
 
-    @Value("${qdrant.host:localhost}")
+    @Value("${spring.ai.vectorestore.qdrant.host:localhost}")
     private String qdrantHost;
 
-    @Value("${qdrant.port:6334}")
+    @Value("${spring.ai.vectorestore.qdrant.port:6334}")
     private int qdrantPort;
 
-    @Value("${qdrant.use-tls:false}")
+    @Value("${spring.ai.vectorestore.qdrant.use-tls:false}")
     private boolean useTls;
 
-    @Value("${qdrant.api-key:}")
+    @Value("${spring.ai.vectorestore.qdrant.api-key:}")
     private String apiKey;
 
     private final Map<String, VectorStore> vectorStores = new ConcurrentHashMap<>();
