@@ -1,7 +1,12 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
+import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
+import com.andrewaleynik.ragsystem.data.ChunkData;
+import com.andrewaleynik.ragsystem.data.DocumentData;
+import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
 import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
 import com.andrewaleynik.ragsystem.data.mappers.DocumentMapper;
+import com.andrewaleynik.ragsystem.data.repositories.ChunkRepository;
 import com.andrewaleynik.ragsystem.data.repositories.DocumentRepository;
 import com.andrewaleynik.ragsystem.domains.DocumentDomain;
 import com.andrewaleynik.ragsystem.domains.ProjectDomain;
@@ -16,6 +21,7 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.treewalk.TreeWalk;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -36,7 +42,9 @@ import java.util.stream.Collectors;
 public class GitRepositoryService {
     private final DocumentRepository documentRepository;
     private final DocumentMapper documentMapper;
+    private final ChunkRepository chunkRepository;
     private final FileHashService fileHashService;
+    private final VectorStoreConfig vectorStoreConfig;
 
     private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(
             "java", "md", "txt", "xml", "yml", "yaml", "json", "properties", "sql"
@@ -87,6 +95,7 @@ public class GitRepositoryService {
 
     private void scanAndUpdateDocuments(ProjectDomain project, Repository repository)
             throws IOException {
+        VectorStore vectorStore = vectorStoreConfig.getOrCreateVectorStore(project);
 
         ObjectId head = repository.resolve(Constants.HEAD);
         Map<String, DocumentJpaEntity> existingDocs = loadExistingDocuments(project.getId());
@@ -123,6 +132,17 @@ public class GitRepositoryService {
 
         if (!toDelete.isEmpty()) {
             documentRepository.deleteAll(toDelete);
+            for (DocumentData documentData : toDelete) {
+                List<ChunkJpaEntity> chunks = chunkRepository.findAllByDocumentId(documentData.getId());
+                List<Long> ids = chunks.stream()
+                        .map(ChunkData::getId)
+                        .toList();
+                List<String> vectorIds = chunks.stream()
+                        .map(ChunkData::getVectorId)
+                        .toList();
+                vectorStore.delete(vectorIds);
+                chunkRepository.deleteAllById(ids);
+            }
         }
         documentRepository.saveAll(updatedDocs.values());
     }
