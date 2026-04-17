@@ -1,8 +1,12 @@
 package com.andrewaleynik.ragsystem.app.controllers;
 
+import com.andrewaleynik.ragsystem.app.dto.project.request.AugmentRequest;
+import com.andrewaleynik.ragsystem.app.dto.project.response.AugmentResponse;
+import com.andrewaleynik.ragsystem.app.services.rag.AugmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -14,6 +18,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Slf4j
@@ -21,7 +26,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ProxyController {
     private static final String PROXY_API_PATH = "/api/proxy/";
-    //    private final AugmentService augmentService;
+    private final AugmentService augmentService;
     private final WebClient webClient;
 
     @RequestMapping(PROXY_API_PATH + "**")
@@ -51,20 +56,26 @@ public class ProxyController {
         log.info("Proxying {} {} -> {}", request.getMethod(), targetHostAndPath, targetUrl);
 
         long startTime = System.currentTimeMillis();
-        return webClient
-                .method(request.getMethod())
-                .uri(targetUrl)
-                .headers(headers -> proxyReactiveHeaders(request.getHeaders(), headers))
-                .body(request.getBody(), DataBuffer.class)
-                .exchangeToMono(clientResponse -> {
-                    long duration = System.currentTimeMillis() - startTime;
+        String finalTargetUrl = targetUrl;
+        return extractBody(request)
+                .flatMap(originalBody -> {
+                    log.debug("Original request body: {}", originalBody);
 
-                    response.setStatusCode(clientResponse.statusCode());
-                    response.getHeaders().putAll(clientResponse.headers().asHttpHeaders());
+                    String modifiedBody = modify(originalBody);
+                    log.debug("Modified request body: {}", modifiedBody);
 
-                    log.info("Response: {} ({} ms)", clientResponse.statusCode(), duration);
-
-                    return response.writeWith(clientResponse.bodyToFlux(DataBuffer.class));
+                    return webClient
+                            .method(request.getMethod())
+                            .uri(finalTargetUrl)
+                            .headers(headers -> proxyReactiveHeaders(request.getHeaders(), headers))
+                            .bodyValue(modifiedBody)
+                            .exchangeToMono(clientResponse -> {
+                                long duration = System.currentTimeMillis() - startTime;
+                                response.setStatusCode(clientResponse.statusCode());
+                                response.getHeaders().putAll(clientResponse.headers().asHttpHeaders());
+                                log.info("Response: {} ({} ms)", clientResponse.statusCode(), duration);
+                                return response.writeWith(clientResponse.bodyToFlux(DataBuffer.class));
+                            });
                 })
                 .onErrorResume(WebClientResponseException.class, e -> {
                     log.error("Proxy error: {} - {}", e.getStatusCode(), e.getMessage());
@@ -85,6 +96,23 @@ public class ProxyController {
                             Mono.just(response.bufferFactory().wrap(errorBody.getBytes()))
                     );
                 });
+    }
+
+    private String modify(String originalBodyJson) {
+        AugmentRequest request = new AugmentRequest(originalBodyJson);
+        AugmentResponse response = augmentService.augment(request);
+        return response.augmentedRequestBody();
+    }
+
+    private Mono<String> extractBody(ServerHttpRequest request) {
+        return DataBufferUtils.join(request.getBody())
+                .map(dataBuffer -> {
+                    byte[] bytes = new byte[dataBuffer.readableByteCount()];
+                    dataBuffer.read(bytes);
+                    DataBufferUtils.release(dataBuffer);
+                    return new String(bytes, StandardCharsets.UTF_8);
+                })
+                .defaultIfEmpty("");
     }
 
     private String extractTargetHostAndPath(ServerHttpRequest request) {
@@ -122,5 +150,6 @@ public class ProxyController {
             }
         });
         target.add("X-Proxy-By", "ReactiveProxy");
+        target.remove("content-length");
     }
 }
