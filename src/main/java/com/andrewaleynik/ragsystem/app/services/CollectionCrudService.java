@@ -1,21 +1,23 @@
 package com.andrewaleynik.ragsystem.app.services;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.collection.*;
-import com.andrewaleynik.ragsystem.app.dto.project.response.CollectionListResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.CollectionResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.DocumentListResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.DocumentResponse;
+import com.andrewaleynik.ragsystem.app.dto.request.collection.*;
+import com.andrewaleynik.ragsystem.app.dto.response.CollectionListResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.CollectionResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.DocumentListResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.DocumentResponse;
+import com.andrewaleynik.ragsystem.app.services.core.VectorStoreHelper;
+import com.andrewaleynik.ragsystem.config.ExVectorStore;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
-import com.andrewaleynik.ragsystem.data.CollectionData;
-import com.andrewaleynik.ragsystem.data.DocumentData;
-import com.andrewaleynik.ragsystem.data.entities.CollectionJpaEntity;
-import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
-import com.andrewaleynik.ragsystem.data.mappers.CollectionMapper;
+import com.andrewaleynik.ragsystem.data.entities.Chunk;
+import com.andrewaleynik.ragsystem.data.entities.Collection;
+import com.andrewaleynik.ragsystem.data.entities.Document;
+import com.andrewaleynik.ragsystem.data.entities.Project;
+import com.andrewaleynik.ragsystem.data.repositories.ChunkRepository;
 import com.andrewaleynik.ragsystem.data.repositories.CollectionRepository;
 import com.andrewaleynik.ragsystem.data.repositories.DocumentRepository;
-import com.andrewaleynik.ragsystem.domains.CollectionDomain;
-import com.andrewaleynik.ragsystem.factories.CollectionFactory;
+import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.google.common.collect.Lists;
+import io.qdrant.client.grpc.Points;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,26 +27,45 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Service
 @RequiredArgsConstructor
 public class CollectionCrudService {
+    private final ProjectRepository projectRepository;
     private final CollectionRepository collectionRepository;
-    private final CollectionMapper collectionMapper;
     private final DocumentRepository documentRepository;
-    private final VectorStoreConfig vectorStoreConfig;
 
+    private final ChunkRepository chunkRepository;
+    private final VectorStoreConfig vectorStoreConfig;
+    private final VectorStoreHelper vectorStoreHelper;
+
+    @Transactional
     public CollectionResponse createCollection(CollectionCreateRequest request) {
-        CollectionJpaEntity entity = new CollectionFactory()
-                .withName(request.name())
-                .createEntity();
-        collectionRepository.save(entity);
-        return createCollectionResponse(entity);
+        Collection collection = Collection.builder()
+                .name(request.name())
+                .build();
+        collectionRepository.save(collection);
+        return createCollectionResponse(collection);
     }
 
+    @Transactional(readOnly = true)
     public CollectionListResponse retrieveCollections(CollectionRetrieveRequest request) {
-        Iterable<CollectionJpaEntity> entities = collectionRepository.findAll();
+        Iterable<Collection> entities = collectionRepository.findAllById(request.ids());
+        List<CollectionResponse> collections = StreamSupport.stream(entities.spliterator(), false)
+                .map(this::createCollectionResponse)
+                .toList();
+        return new CollectionListResponse(
+                collections.size(),
+                collections
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public CollectionListResponse retrieveCollections() {
+        Iterable<Collection> entities = collectionRepository.findAll();
         List<CollectionResponse> collections = StreamSupport.stream(entities.spliterator(), false)
                 .map(this::createCollectionResponse)
                 .toList();
@@ -56,23 +77,21 @@ public class CollectionCrudService {
 
     @Transactional
     public CollectionResponse updateCollection(CollectionUpdateRequest request) {
-        CollectionJpaEntity entity = collectionRepository.findById(request.id())
+        Collection collection = collectionRepository.findById(request.id())
                 .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
 
-        CollectionDomain domain = CollectionFactory.from(entity).createDomain();
-
         if (request.name() != null) {
-            domain.setName(request.name());
+            collection.setName(request.name());
         }
 
-        collectionMapper.updateEntity(domain, entity);
-        CollectionJpaEntity saved = collectionRepository.save(entity);
+        Collection saved = collectionRepository.save(collection);
 
         return createCollectionResponse(saved);
     }
 
+    @Transactional
     public void deleteCollection(CollectionDeleteRequest request) {
-        CollectionJpaEntity collection = collectionRepository.findById(request.id())
+        Collection collection = collectionRepository.findById(request.id())
                 .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
         vectorStoreConfig.deleteVectorStore(collection);
         collectionRepository.deleteById(request.id());
@@ -80,7 +99,7 @@ public class CollectionCrudService {
 
     @Transactional
     public void activateCollection(CollectionActivateRequest request) {
-        CollectionJpaEntity collection = collectionRepository.findById(request.id())
+        Collection collection = collectionRepository.findById(request.id())
                 .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
         collection.setActive(true);
         collectionRepository.save(collection);
@@ -88,7 +107,7 @@ public class CollectionCrudService {
 
     @Transactional
     public void deactivateCollection(CollectionDeactivateRequest request) {
-        CollectionJpaEntity collection = collectionRepository.findById(request.id())
+        Collection collection = collectionRepository.findById(request.id())
                 .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
         collection.setActive(false);
         collectionRepository.save(collection);
@@ -96,20 +115,23 @@ public class CollectionCrudService {
 
     @Transactional
     public DocumentListResponse addDocumentsToCollection(Long collectionId, List<Long> documentIds) {
-        CollectionJpaEntity collection = collectionRepository.findById(collectionId).orElseThrow(() ->
-                new EntityNotFoundException("Collection " + collectionId + "not found"));
-        List<DocumentJpaEntity> documents = Lists.newArrayList(documentRepository.findAllById(documentIds));
-        List<DocumentJpaEntity> addedDocuments = documents.stream()
+        Collection collection = collectionRepository.findById(collectionId).orElseThrow(() ->
+                new EntityNotFoundException("Collection " + collectionId + " not found"));
+        List<Document> documents = Lists.newArrayList(documentRepository.findAllById(documentIds));
+        List<Document> addedDocuments = documents.stream()
                 .filter(doc -> !collection.getDocuments().contains(doc))
                 .toList();
 
-        addedDocuments.forEach(collection::addDocument);
-
-        if (!addedDocuments.isEmpty()) {
-            collectionRepository.save(collection);
+        if (addedDocuments.isEmpty()) {
+            return new DocumentListResponse(0, 0, List.of());
         }
 
+        addedDocuments.forEach(collection::addDocument);
+        collectionRepository.save(collection);
+        copyVectorsToCollection(collection, addedDocuments);
+
         return new DocumentListResponse(
+                addedDocuments.size(),
                 addedDocuments.size(),
                 addedDocuments.stream()
                         .map(this::createDocumentResponse)
@@ -119,22 +141,25 @@ public class CollectionCrudService {
 
     @Transactional
     public DocumentListResponse removeDocumentsFromCollection(Long collectionId, List<Long> documentIds) {
-        CollectionJpaEntity collection = collectionRepository.findById(collectionId)
+        Collection collection = collectionRepository.findById(collectionId)
                 .orElseThrow(() -> new EntityNotFoundException("Collection " + collectionId + " not found"));
 
-        List<DocumentJpaEntity> documents = Lists.newArrayList(documentRepository.findAllById(documentIds));
+        List<Document> documents = Lists.newArrayList(documentRepository.findAllById(documentIds));
 
-        List<DocumentJpaEntity> removedDocuments = documents.stream()
+        List<Document> removedDocuments = documents.stream()
                 .filter(collection.getDocuments()::contains)
                 .toList();
 
-        removedDocuments.forEach(collection::removeDocument);
-
-        if (!removedDocuments.isEmpty()) {
-            collectionRepository.save(collection);
+        if (removedDocuments.isEmpty()) {
+            return new DocumentListResponse(0, 0, List.of());
         }
 
+        removedDocuments.forEach(collection::removeDocument);
+        collectionRepository.save(collection);
+        deleteVectorsFromCollection(collection, removedDocuments);
+
         return new DocumentListResponse(
+                removedDocuments.size(),
                 removedDocuments.size(),
                 removedDocuments.stream()
                         .map(this::createDocumentResponse)
@@ -144,12 +169,13 @@ public class CollectionCrudService {
 
     @Transactional(readOnly = true)
     public DocumentListResponse getCollectionDocuments(Long collectionId) {
-        CollectionJpaEntity collection = collectionRepository.findById(collectionId)
+        Collection collection = collectionRepository.findById(collectionId)
                 .orElseThrow(() -> new EntityNotFoundException("Collection " + collectionId + " not found"));
 
-        List<DocumentData> documents = collection.getDocuments();
+        List<Document> documents = collection.getDocuments();
 
         return new DocumentListResponse(
+                documents.size(),
                 documents.size(),
                 documents.stream()
                         .map(this::createDocumentResponse)
@@ -159,13 +185,14 @@ public class CollectionCrudService {
 
     @Transactional(readOnly = true)
     public DocumentListResponse getCollectionDocuments(Long collectionId, int page, int size) {
-        collectionRepository.findById(collectionId)
+        Collection collection = collectionRepository.findById(collectionId)
                 .orElseThrow(() -> new EntityNotFoundException("Collection " + collectionId + " not found"));
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<DocumentJpaEntity> documentPage = documentRepository.findByCollectionId(collectionId, pageable);
+        Page<Document> documentPage = documentRepository.findByCollectionId(collectionId, pageable);
 
         return new DocumentListResponse(
+                collection.getDocuments().size(),
                 (int) documentPage.getTotalElements(),
                 documentPage.getContent().stream()
                         .map(this::createDocumentResponse)
@@ -173,7 +200,7 @@ public class CollectionCrudService {
         );
     }
 
-    private CollectionResponse createCollectionResponse(CollectionData collectionData) {
+    private CollectionResponse createCollectionResponse(Collection collectionData) {
         return CollectionResponse.builder()
                 .id(collectionData.getId())
                 .createdAt(collectionData.getCreatedAt())
@@ -181,10 +208,11 @@ public class CollectionCrudService {
                 .name(collectionData.getName())
                 .indexedAt(collectionData.getIndexedAt())
                 .active(collectionData.getActive())
+                .documentIds(collectionData.getDocuments().stream().map(Document::getId).toList())
                 .build();
     }
 
-    private DocumentResponse createDocumentResponse(DocumentData documentData) {
+    private DocumentResponse createDocumentResponse(Document documentData) {
         return DocumentResponse.builder()
                 .id(documentData.getId())
                 .projectId(documentData.getProjectId())
@@ -196,5 +224,41 @@ public class CollectionCrudService {
                 .fileExtension(documentData.getFileExtension())
                 .fileHash(documentData.getFileHash())
                 .build();
+    }
+
+    private void copyVectorsToCollection(Collection collection, List<Document> documents) {
+        ExVectorStore collectionVectorStore = vectorStoreConfig.getOrCreateVectorStore(collection);
+
+        Map<Long, List<String>> chunksByProject = documents.stream()
+                .collect(Collectors.groupingBy(
+                        Document::getProjectId,
+                        Collectors.flatMapping(
+                                doc -> chunkRepository.findAllByDocumentId(doc.getId()).stream().map(Chunk::getVectorId),
+                                Collectors.toList()
+                        )
+                ));
+
+        chunksByProject.forEach((projectId, vectorIds) -> {
+            Project project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new EntityNotFoundException("Project not found: " + projectId));
+            ExVectorStore projectVectorStore = vectorStoreConfig.getOrCreateVectorStore(project);
+            List<Points.PointStruct> pointsToCopy = vectorStoreHelper.fetchVectorsFromVectorStore(projectVectorStore, vectorIds);
+            vectorStoreHelper.writeVectorsToVectorStore(collectionVectorStore, pointsToCopy);
+        });
+    }
+
+    private void deleteVectorsFromCollection(Collection collection, List<Document> documents) {
+        ExVectorStore collectionVectorStore = vectorStoreConfig.getOrCreateVectorStore(collection);
+
+        List<String> vectorIds = documents.stream()
+                .flatMap(doc -> chunkRepository.findAllByDocumentId(doc.getId()).stream())
+                .map(Chunk::getVectorId)
+                .map(String::valueOf)
+                .toList();
+
+        if (vectorIds.isEmpty()) {
+            return;
+        }
+        collectionVectorStore.vectorStore().delete(vectorIds);
     }
 }

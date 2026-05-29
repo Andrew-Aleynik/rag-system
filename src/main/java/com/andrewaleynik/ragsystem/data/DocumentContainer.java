@@ -1,13 +1,23 @@
 package com.andrewaleynik.ragsystem.data;
 
+import com.andrewaleynik.ragsystem.data.entities.Document;
+
 import java.util.List;
 
 public interface DocumentContainer {
-    List<DocumentData> getDocuments();
+    Long getId();
 
-    void setDocuments(List<DocumentData> documents);
+    void setId(Long id);
 
-    void addDocument(DocumentData document);
+    List<Document> getDocuments();
 
-    void removeDocument(DocumentData document);
+    void setDocuments(List<Document> documents);
+
+    void addDocument(Document document);
+
+    void removeDocument(Document document);
+
+    String getName();
+
+    void setName(String name);
 }

@@ -1,7 +1,7 @@
 package com.andrewaleynik.ragsystem.app.controllers;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.AugmentRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.AugmentResponse;
+import com.andrewaleynik.ragsystem.app.dto.request.AugmentRequest;
+import com.andrewaleynik.ragsystem.app.dto.response.AugmentResponse;
 import com.andrewaleynik.ragsystem.app.services.rag.AugmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,12 +24,12 @@ import java.util.List;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/v1/proxy")
 public class ProxyController {
-    private static final String PROXY_API_PATH = "/api/proxy/";
     private final AugmentService augmentService;
     private final WebClient webClient;
 
-    @RequestMapping(PROXY_API_PATH + "**")
+    @RequestMapping("/**")
     public Mono<Void> proxyRequest(
             ServerHttpRequest request,
             ServerHttpResponse response,
@@ -39,7 +39,7 @@ public class ProxyController {
 
         if (targetHostAndPath == null || targetHostAndPath.isEmpty()) {
             response.setStatusCode(HttpStatus.BAD_REQUEST);
-            String errorBody = "{\"error\": \"Usage: /api/proxy/{domain}/{path}\"}";
+            String errorBody = "{\"error\": \"Usage: /api/proxy/{target_url}\"}";
             return response.writeWith(
                     Mono.just(response.bufferFactory().wrap(errorBody.getBytes()))
             );
@@ -117,17 +117,10 @@ public class ProxyController {
 
     private String extractTargetHostAndPath(ServerHttpRequest request) {
         String fullPath = request.getURI().toString();
-        int proxyIndex = fullPath.indexOf(PROXY_API_PATH);
+        int proxyIndex = fullPath.indexOf("proxy/");
 
         if (proxyIndex != -1) {
-            String afterProxy = fullPath.substring(proxyIndex + PROXY_API_PATH.length());
-
-            int queryIndex = afterProxy.indexOf('?');
-            if (queryIndex != -1) {
-                afterProxy = afterProxy.substring(0, queryIndex);
-            }
-
-            return afterProxy;
+            return fullPath.substring(proxyIndex);
         }
 
         return null;

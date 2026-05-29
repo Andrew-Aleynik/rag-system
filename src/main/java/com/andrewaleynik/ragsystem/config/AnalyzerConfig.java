@@ -10,12 +10,10 @@ import org.springframework.context.annotation.Primary;
 public class AnalyzerConfig {
 
     public Analyzer getAnalyzerForExtension(String extension) {
-        switch (extension.toLowerCase()) {
-            case "java":
-                return createJavaFileAnalyzer();
-            default:
-                return createDefaultFileAnalyzer();
+        if ("java".equalsIgnoreCase(extension)) {
+            return createJavaFileAnalyzer();
         }
+        return null;
     }
 
     @Bean(name = "defaultAnalyzer")

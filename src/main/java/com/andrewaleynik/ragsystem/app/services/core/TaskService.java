@@ -1,8 +1,7 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.data.CollectionData;
-import com.andrewaleynik.ragsystem.data.Entity;
-import com.andrewaleynik.ragsystem.data.ProjectData;
+import com.andrewaleynik.ragsystem.data.entities.Collection;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import com.andrewaleynik.ragsystem.domains.Task;
 import com.andrewaleynik.ragsystem.domains.TaskId;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
@@ -29,9 +28,8 @@ public class TaskService {
         this.cleanupPeriodMillis = cleanupPeriodMillis;
         Arrays.stream(TaskType.values()).forEach(taskType ->
                 taskTypesSemaphores.put(taskType, new Semaphore(permittedCountRunningTasks)));
-        Thread thread = new Thread(removingTerminatedTasksRunnable());
-        thread.setDaemon(true);
-        thread.start();
+        startDaemonThread(removingTerminatedTasksRunnable());
+        startDaemonThread(killUnresponsiveTasksRunnable());
     }
 
     public List<Task> getTasks() {
@@ -42,7 +40,7 @@ public class TaskService {
         return tasks.containsKey(id);
     }
 
-    public <T extends Entity> boolean tryAddTask(Task task) {
+    public <T> boolean tryAddTask(Task task) {
         return tasks.putIfAbsent(task.getId(), task) == null;
     }
 
@@ -65,14 +63,20 @@ public class TaskService {
         taskTypesSemaphores.get(taskType).release();
     }
 
-    public <T extends Entity> TaskId getTaskId(T entity) {
-        if (entity instanceof ProjectData projectData) {
-            return new TaskId(ProjectData.class, projectData.getId());
-        } else if (entity instanceof CollectionData collectionData) {
-            return new TaskId(CollectionData.class, collectionData.getId());
+    public <T> TaskId getTaskId(T entity) {
+        if (entity instanceof Project projectData) {
+            return new TaskId(Project.class, projectData.getId());
+        } else if (entity instanceof Collection collectionData) {
+            return new TaskId(Collection.class, collectionData.getId());
         } else {
             throw new IllegalArgumentException("Wrong entity type: " + entity.getClass().getName());
         }
+    }
+
+    private void startDaemonThread(Runnable runnable) {
+        Thread thread = new Thread(runnable);
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private Runnable removingTerminatedTasksRunnable() {
@@ -89,6 +93,26 @@ public class TaskService {
                     if (task.getStatus().isTerminated()
                             && task.getUpdatedAt().plusMinutes(1).isBefore(LocalDateTime.now())) {
                         tasks.remove(entry.getKey());
+                    }
+                }
+            }
+        };
+    }
+
+    private Runnable killUnresponsiveTasksRunnable() {
+        return () -> {
+            while (!Thread.currentThread().isInterrupted()) {
+                try {
+                    Thread.sleep(cleanupPeriodMillis);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                for (Map.Entry<TaskId, Task> entry : tasks.entrySet()) {
+                    Task task = entry.getValue();
+                    if (task.getStatus() == TaskStatus.IN_PROCESS
+                            && task.getUpdatedAt().plusMinutes(1).isBefore(LocalDateTime.now())) {
+                        task.setStatus(TaskStatus.FAILED);
                     }
                 }
             }

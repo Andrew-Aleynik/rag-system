@@ -1,24 +1,28 @@
 package com.andrewaleynik.ragsystem.app.services.rag;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.RetrieveRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.RetrieveResponse;
+import com.andrewaleynik.ragsystem.app.dto.request.RetrieveRequest;
+import com.andrewaleynik.ragsystem.app.dto.response.RetrieveResponse;
+import com.andrewaleynik.ragsystem.config.ExVectorStore;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
-import com.andrewaleynik.ragsystem.data.ChunkData;
-import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
-import com.andrewaleynik.ragsystem.data.entities.CollectionJpaEntity;
-import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
+import com.andrewaleynik.ragsystem.data.entities.Chunk;
+import com.andrewaleynik.ragsystem.data.entities.Collection;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import com.andrewaleynik.ragsystem.data.repositories.ChunkRepository;
 import com.andrewaleynik.ragsystem.data.repositories.CollectionRepository;
+import com.andrewaleynik.ragsystem.data.repositories.DocumentRepository;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Slf4j
 @Service
@@ -26,8 +30,9 @@ import java.util.*;
 public class RetrieveService {
     private final CollectionRepository collectionRepository;
     private final ProjectRepository projectRepository;
-    private final VectorStoreConfig vectorStoreConfig;
+    private final DocumentRepository documentRepository;
     private final ChunkRepository chunkRepository;
+    private final VectorStoreConfig vectorStoreConfig;
 
     @Value("${services.retrieve.top_k:5}")
     private int topK;
@@ -44,34 +49,35 @@ public class RetrieveService {
     @Value("${services.retrieve.context_chunks_after:2}")
     private int contextChunksAfter;
 
+    @Transactional
     public RetrieveResponse retrieveChunks(RetrieveRequest request) {
         if (request == null || request.query() == null || request.query().isBlank()) {
-            return new RetrieveResponse(Collections.emptyList());
+            return new RetrieveResponse(Collections.emptyMap());
         }
 
-        List<ProjectJpaEntity> activeProjects = projectRepository.getAllByActive(true);
-        List<CollectionJpaEntity> activeCollections = collectionRepository.getAllByActive(true);
+        List<Project> activeProjects = projectRepository.getAllByActive(true);
+        List<Collection> activeCollections = collectionRepository.getAllByActive(true);
 
         List<Document> allRetrievedDocuments = new ArrayList<>();
 
-        for (ProjectJpaEntity project : activeProjects) {
-            VectorStore vectorStore = vectorStoreConfig.getOrCreateVectorStore(project);
+        for (Project project : activeProjects) {
+            ExVectorStore vectorStore = vectorStoreConfig.getOrCreateVectorStore(project);
             SearchRequest searchRequest = SearchRequest.builder()
                     .query(request.query())
                     .topK(topK)
                     .similarityThreshold(similarityThreshold)
                     .build();
-            allRetrievedDocuments.addAll(vectorStore.similaritySearch(searchRequest));
+            allRetrievedDocuments.addAll(vectorStore.vectorStore().similaritySearch(searchRequest));
         }
 
-        for (CollectionJpaEntity collection : activeCollections) {
-            VectorStore vectorStore = vectorStoreConfig.getOrCreateVectorStore(collection);
+        for (Collection collection : activeCollections) {
+            ExVectorStore vectorStore = vectorStoreConfig.getOrCreateVectorStore(collection);
             SearchRequest searchRequest = SearchRequest.builder()
                     .query(request.query())
                     .topK(topK)
                     .similarityThreshold(similarityThreshold)
                     .build();
-            allRetrievedDocuments.addAll(vectorStore.similaritySearch(searchRequest));
+            allRetrievedDocuments.addAll(vectorStore.vectorStore().similaritySearch(searchRequest));
         }
 
         List<String> mainVectorIds = allRetrievedDocuments.stream()
@@ -83,28 +89,28 @@ public class RetrieveService {
 
         if (mainVectorIds.isEmpty()) {
             log.info("No relevant chunks found for query: '{}'", request.query());
-            return new RetrieveResponse(Collections.emptyList());
+            return new RetrieveResponse(Collections.emptyMap());
         }
 
-        List<ChunkJpaEntity> mainChunks = chunkRepository.findAllByVectorIdIn(mainVectorIds);
+        List<Chunk> mainChunks = chunkRepository.findAllByVectorIdIn(mainVectorIds);
 
-        Set<ChunkJpaEntity> allChunks = new LinkedHashSet<>(mainChunks);
+        Set<Chunk> allChunks = new LinkedHashSet<>(mainChunks);
 
-        for (ChunkJpaEntity chunk : mainChunks) {
-            List<ChunkJpaEntity> structuralChunks = chunkRepository.findByDocumentIdAndStructural(
+        for (Chunk chunk : mainChunks) {
+            List<Chunk> structuralChunks = chunkRepository.findByDocumentIdAndStructural(
                     chunk.getDocumentId(),
                     true
             );
             allChunks.addAll(structuralChunks);
 
-            List<ChunkJpaEntity> neighborChunks = chunkRepository.findByDocumentIdAndStructuralAndIndexBetween(
+            List<Chunk> neighborChunks = chunkRepository.findByDocumentIdAndStructuralAndIndexBetween(
                     chunk.getDocumentId(),
                     false,
                     chunk.getIndex() - contextChunksBefore,
                     chunk.getIndex() + contextChunksAfter
             );
 
-            List<ChunkJpaEntity> filteredNeighbors = neighborChunks.stream()
+            List<Chunk> filteredNeighbors = neighborChunks.stream()
                     .filter(c -> !c.getStructural())
                     .filter(c -> !allChunks.contains(c))
                     .toList();
@@ -112,14 +118,38 @@ public class RetrieveService {
             allChunks.addAll(filteredNeighbors);
         }
 
-        List<ChunkData> sortedChunks = allChunks.stream()
-                .sorted(Comparator.comparing(ChunkJpaEntity::getDocumentId).thenComparing(ChunkJpaEntity::getIndex))
-                .map(ChunkData.class::cast)
-                .toList();
+        Set<Long> documentIds = allChunks.stream()
+                .map(Chunk::getDocumentId)
+                .collect(Collectors.toSet());
+
+        Map<Long, com.andrewaleynik.ragsystem.data.entities.Document> documentsById;
+        if (documentIds.isEmpty()) {
+            documentsById = Collections.emptyMap();
+        } else {
+            documentsById = StreamSupport.stream(documentRepository.findAllById(documentIds).spliterator(), false)
+                    .filter(document -> {
+                        if (request.fileExtensions() != null && !request.fileExtensions().isEmpty()) {
+                            return request.fileExtensions().contains(document.getFileExtension());
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toMap(
+                            com.andrewaleynik.ragsystem.data.entities.Document::getId,
+                            Function.identity()
+                    ));
+        }
+
+        Map<String, List<Chunk>> documentChunks = allChunks.stream()
+                .sorted(Comparator.comparing(Chunk::getDocumentId).thenComparing(Chunk::getIndex))
+                .collect(Collectors.groupingBy(
+                        chunk -> documentsById.get(chunk.getDocumentId()).getLocalPath(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
 
         log.info("Retrieved {} main chunks, expanded to {} total chunks (structural + context)", mainChunks.size(),
-                sortedChunks.size());
+                allChunks.size());
 
-        return new RetrieveResponse(sortedChunks);
+        return new RetrieveResponse(documentChunks);
     }
 }

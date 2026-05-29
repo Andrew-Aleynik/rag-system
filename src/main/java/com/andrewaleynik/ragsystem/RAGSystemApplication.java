@@ -1,10 +1,9 @@
 package com.andrewaleynik.ragsystem;
 
+import org.springframework.ai.model.ollama.autoconfigure.OllamaEmbeddingAutoConfiguration;
 import org.springframework.ai.model.openai.autoconfigure.*;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 
 @SpringBootApplication(exclude = {
         OpenAiEmbeddingAutoConfiguration.class,
@@ -13,6 +12,7 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
         OpenAiModerationAutoConfiguration.class,
         OpenAiChatAutoConfiguration.class,
         OpenAiImageAutoConfiguration.class,
+        OllamaEmbeddingAutoConfiguration.class
 })
 public class RAGSystemApplication {
 

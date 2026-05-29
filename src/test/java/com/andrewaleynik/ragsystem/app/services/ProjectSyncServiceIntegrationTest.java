@@ -1,18 +1,18 @@
 package com.andrewaleynik.ragsystem.app.services;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectSyncRequest;
+import com.andrewaleynik.ragsystem.app.dto.request.project.ProjectSyncRequest;
 import com.andrewaleynik.ragsystem.app.services.core.ProjectSyncService;
 import com.andrewaleynik.ragsystem.app.services.core.TaskService;
 import com.andrewaleynik.ragsystem.config.TestConfig;
-import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.andrewaleynik.ragsystem.domains.ProjectType;
 import com.andrewaleynik.ragsystem.domains.Task;
 import com.andrewaleynik.ragsystem.domains.TaskId;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
-import com.andrewaleynik.ragsystem.factories.ProjectFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -62,15 +62,16 @@ class ProjectSyncServiceIntegrationTest {
 
     @Test
     void testTryStartSyncProject(@TempDir Path tempDir) {
-        ProjectJpaEntity entity = new ProjectFactory()
-                .withUrl("https://github.com/githubtraining/hellogitworld")
-                .withType(ProjectType.GIT)
-                .withName("some_project")
-                .withDefaultBranch("master")
-                .withLocalPath(tempDir.toString())
-                .createEntity();
+        Mockito.when(embeddingModel.dimensions()).thenReturn(768);
+        Project entity = Project.builder()
+                .url("https://github.com/githubtraining/hellogitworld")
+                .type(ProjectType.GIT)
+                .name("some_project")
+                .defaultBranch("master")
+                .localPath(tempDir.toString())
+                .build();
         projectRepository.save(entity);
-        ProjectSyncRequest request = new ProjectSyncRequest(entity.getId());
+        ProjectSyncRequest request = new ProjectSyncRequest(entity.getId(), null, null);
 
         projectSyncService.tryStartSyncProject(request);
 
@@ -90,7 +91,7 @@ class ProjectSyncServiceIntegrationTest {
                     return status == TaskStatus.DONE || status == TaskStatus.FAILED;
                 });
 
-        ProjectJpaEntity updated = projectRepository.findById(entity.getId()).orElseThrow();
+        Project updated = projectRepository.findById(entity.getId()).orElseThrow();
         assertNotNull(updated.getSyncedAt());
     }
 }

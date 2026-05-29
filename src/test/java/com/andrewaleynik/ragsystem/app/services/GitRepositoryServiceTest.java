@@ -2,12 +2,11 @@ package com.andrewaleynik.ragsystem.app.services;
 
 import com.andrewaleynik.ragsystem.app.services.core.FileHashService;
 import com.andrewaleynik.ragsystem.app.services.core.GitRepositoryService;
-import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
-import com.andrewaleynik.ragsystem.data.mappers.DocumentMapper;
+import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
+import com.andrewaleynik.ragsystem.data.entities.Document;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import com.andrewaleynik.ragsystem.data.repositories.DocumentRepository;
-import com.andrewaleynik.ragsystem.domains.ProjectDomain;
 import com.andrewaleynik.ragsystem.domains.ProjectType;
-import com.andrewaleynik.ragsystem.factories.ProjectFactory;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -17,7 +16,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.File;
@@ -38,9 +36,9 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class GitRepositoryServiceTest {
     @Mock
+    private VectorStoreConfig vectorStoreConfig;
+    @Mock
     private DocumentRepository documentRepository;
-    @Spy
-    private DocumentMapper documentMapper;
     @Mock
     private FileHashService fileHashService;
     @InjectMocks
@@ -52,14 +50,14 @@ class GitRepositoryServiceTest {
         String localName = "some_project";
         Path tempDir = cloneRepository(localName, repoUri);
         try {
-            ProjectDomain domain = new ProjectFactory()
-                    .withUrl(repoUri)
-                    .withType(ProjectType.GIT)
-                    .withName(localName)
-                    .withDefaultBranch("master")
-                    .withLocalPath(tempDir.toString())
-                    .createDomain();
-            assertDoesNotThrow(() -> gitRepositoryService.syncProject(domain));
+            Project project = Project.builder()
+                    .url(repoUri)
+                    .type(ProjectType.GIT)
+                    .name(localName)
+                    .defaultBranch("master")
+                    .localPath(tempDir.toString())
+                    .build();
+            assertDoesNotThrow(() -> gitRepositoryService.syncProject(project, null, null));
         } finally {
             cleanup(tempDir.toFile());
         }
@@ -69,29 +67,29 @@ class GitRepositoryServiceTest {
     void testSyncExistRemoteProject(@TempDir Path tempDir) {
         String repoUri = "https://github.com/githubtraining/hellogitworld";
 
-        ProjectDomain domain = new ProjectFactory()
-                .withUrl(repoUri)
-                .withType(ProjectType.GIT)
-                .withName("some_project")
-                .withDefaultBranch("master")
-                .withLocalPath(tempDir.toString())
-                .createDomain();
+        Project project = Project.builder()
+                .url(repoUri)
+                .type(ProjectType.GIT)
+                .name("some_project")
+                .defaultBranch("master")
+                .localPath(tempDir.toString())
+                .build();
 
-        assertDoesNotThrow(() -> gitRepositoryService.syncProject(domain));
+        assertDoesNotThrow(() -> gitRepositoryService.syncProject(project, null, null));
         Assertions.assertTrue(Files.exists(tempDir.resolve(".git")));
     }
 
     @Test
     void testUpdateRepositoryInfo(@TempDir Path tempDir) throws Exception {
         createLocalRepository(tempDir);
-        ProjectDomain project = new ProjectFactory()
-                .withId(1L)
-                .withDefaultBranch("master")
-                .withType(ProjectType.GIT)
-                .withName("test-project")
-                .withLocalPath(tempDir.toString())
-                .withUrl("https://github.com/test/test")
-                .createDomain();
+        Project project = Project.builder()
+                .id(1L)
+                .url("https://github.com/test/test")
+                .name("master")
+                .type(ProjectType.GIT)
+                .defaultBranch("test-project")
+                .localPath(tempDir.toString())
+                .build();
 
         when(documentRepository.findAllByProjectId(1L)).thenReturn(Collections.emptyList());
         when(documentRepository.saveAll(anyIterable())).thenReturn(Collections.emptyList());
@@ -102,9 +100,9 @@ class GitRepositoryServiceTest {
         assertNotNull(project.getUpdatedAt());
         assertEquals("master", project.getDefaultBranch());
         verify(documentRepository).saveAll(argThat(docs -> {
-            List<DocumentJpaEntity> saved = new ArrayList<>();
+            List<Document> saved = new ArrayList<>();
             docs.forEach(saved::add);
-            DocumentJpaEntity entity = saved.get(0);
+            Document entity = saved.get(0);
             return saved.size() == 1
                     && entity.getLocalPath().equals(tempDir.toString() + "/src/Test.java")
                     && entity.getFileName().equals("Test.java")

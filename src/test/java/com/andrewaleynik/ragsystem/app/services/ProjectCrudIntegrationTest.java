@@ -1,10 +1,10 @@
 package com.andrewaleynik.ragsystem.app.services;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectCreateRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectDeleteRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectUpdateRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectListResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectResponse;
+import com.andrewaleynik.ragsystem.app.dto.request.project.ProjectCreateRequest;
+import com.andrewaleynik.ragsystem.app.dto.request.project.ProjectDeleteRequest;
+import com.andrewaleynik.ragsystem.app.dto.request.project.ProjectUpdateRequest;
+import com.andrewaleynik.ragsystem.app.dto.response.ProjectListResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.ProjectResponse;
 import com.andrewaleynik.ragsystem.domains.ProjectType;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;

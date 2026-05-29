@@ -1,6 +1,6 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.data.ProjectData;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import com.andrewaleynik.ragsystem.domains.Task;
 import com.andrewaleynik.ragsystem.domains.TaskId;
 import com.andrewaleynik.ragsystem.domains.TaskStatus;
@@ -31,12 +31,12 @@ class TaskServiceTest {
 
     @Test
     void testContainsFalse() {
-        assertFalse(taskService.contains(new TaskId(ProjectData.class, 1L)));
+        assertFalse(taskService.contains(new TaskId(Project.class, 1L)));
     }
 
     @Test
     void testContainsTrue() {
-        TaskId taskId = new TaskId(ProjectData.class, 1L);
+        TaskId taskId = new TaskId(Project.class, 1L);
 
         taskService.tryAddTask(createTask(taskId, TaskType.INDEXING, TaskStatus.NOT_QUEUED));
 
@@ -45,7 +45,7 @@ class TaskServiceTest {
 
     @Test
     void testAddTaskSuccess() {
-        TaskId taskId = new TaskId(ProjectData.class, 1L);
+        TaskId taskId = new TaskId(Project.class, 1L);
         Task task = createTask(taskId, TaskType.INDEXING, TaskStatus.NOT_QUEUED);
 
         taskService.tryAddTask(task);
@@ -55,7 +55,7 @@ class TaskServiceTest {
 
     @Test
     void testUpdateExistedTaskStatusSuccess() {
-        TaskId taskId = new TaskId(ProjectData.class, 1L);
+        TaskId taskId = new TaskId(Project.class, 1L);
         TaskStatus expected = TaskStatus.FAILED;
 
         taskService.tryAddTask(createTask(taskId, TaskType.INDEXING, TaskStatus.NOT_QUEUED));
@@ -66,7 +66,7 @@ class TaskServiceTest {
 
     @Test
     void testUpdateNotExistedTaskStatusNotThrowException() {
-        assertDoesNotThrow(() -> taskService.updateStatus(new TaskId(ProjectData.class, 999L), TaskStatus.DONE));
+        assertDoesNotThrow(() -> taskService.updateStatus(new TaskId(Project.class, 999L), TaskStatus.DONE));
     }
 
     @Test

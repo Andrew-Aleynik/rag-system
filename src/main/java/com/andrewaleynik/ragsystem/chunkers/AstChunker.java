@@ -1,34 +1,35 @@
 package com.andrewaleynik.ragsystem.chunkers;
 
-import com.andrewaleynik.ragsystem.domains.ChunkDomain;
-import com.andrewaleynik.ragsystem.domains.DocumentDomain;
+import com.andrewaleynik.ragsystem.data.entities.Chunk;
+import com.andrewaleynik.ragsystem.data.entities.Document;
 import com.andrewaleynik.ragsystem.exceptions.ChunkingException;
-import com.andrewaleynik.ragsystem.factories.ChunkFactory;
 import com.andrewaleynik.universalparser.Analyzer;
 import com.andrewaleynik.universalparser.Structure;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 
 @RequiredArgsConstructor
-public class AstChunker implements Chunker {
+public class AstChunker extends AbstractChunker {
     private final Analyzer analyzer;
     private final int maxChunkSize;
     private final int minPayloadSize;
     private final float overlap;
 
-    public List<ChunkDomain> chunkDocument(DocumentDomain document) throws ChunkingException, IOException {
-        List<ChunkDomain> chunks;
-        long fileSize = Files.size(document.getLocalPathAsPath());
+    public List<Chunk> chunkDocument(Document document) throws ChunkingException, IOException {
+        Path localPath = Path.of(document.getLocalPath());
+        List<Chunk> chunks;
+        long fileSize = Files.size(localPath);
         if (fileSize > 50_000_000) {
             throw new ChunkingException("File too large for AST parsing: " + fileSize);
         }
-        String content = Files.readString(document.getLocalPathAsPath());
+        String content = readFileWithAutoEncoding(localPath);
         Structure root = analyzer.analyze(content, 0).get(0);
         List<Structure> leafs = findLeafs(root);
         boolean stop = leafs.stream()
@@ -38,19 +39,19 @@ public class AstChunker implements Chunker {
         }
 
         String documentStructure = getDocumentStructure(content, root);
-        List<ChunkDomain> structuralChunks = split(documentStructure);
+        List<Chunk> structuralChunks = split(documentStructure);
         structuralChunks.forEach(chunk -> chunk.setStructural(true));
         chunks = new ArrayList<>(structuralChunks);
 
         leafs.forEach(leaf -> {
             String leafContent = getLeafContent(content, leaf);
-            List<ChunkDomain> leafContentChunks = split(leafContent);
+            List<Chunk> leafContentChunks = split(leafContent);
             leafContentChunks.forEach(chunk -> chunk.setStructural(false));
             chunks.addAll(leafContentChunks);
         });
 
         for (int i = 0; i < chunks.size(); i++) {
-            ChunkDomain chunk = chunks.get(i);
+            Chunk chunk = chunks.get(i);
             chunk.setDocumentId(document.getId());
             chunk.setIndex(i);
         }
@@ -125,8 +126,8 @@ public class AstChunker implements Chunker {
         return stringBuilder.toString();
     }
 
-    private List<ChunkDomain> split(String content) {
-        List<ChunkDomain> chunks = new ArrayList<>();
+    private List<Chunk> split(String content) {
+        List<Chunk> chunks = new ArrayList<>();
 
         if (content == null || content.isEmpty()) {
             return chunks;
@@ -179,7 +180,7 @@ public class AstChunker implements Chunker {
         return chunks;
     }
 
-    private ChunkDomain createChunk(String[] lines, int startLine, int endLine) {
+    private Chunk createChunk(String[] lines, int startLine, int endLine) {
         StringBuilder content = new StringBuilder();
         for (int i = startLine; i <= endLine; i++) {
             if (i > startLine) {
@@ -191,16 +192,16 @@ public class AstChunker implements Chunker {
         return createChunk(content.toString());
     }
 
-    private ChunkDomain createChunkFromSingleLine(String line) {
+    private Chunk createChunkFromSingleLine(String line) {
         return createChunk(line);
     }
 
-    private ChunkDomain createChunk(String content) {
-        return new ChunkFactory()
-                .withContent(content)
-                .withSizeBytes(content.length())
-                .withHash(computeHash(content))
-                .createDomain();
+    private Chunk createChunk(String content) {
+        return Chunk.builder()
+                .content(content)
+                .sizeBytes(content.length())
+                .hash(computeHash(content))
+                .build();
     }
 
     private List<String> splitLongLine(String line, int maxSize) {
@@ -214,16 +215,6 @@ public class AstChunker implements Chunker {
         }
 
         return parts;
-    }
-
-    // FNV-1a
-    private String computeHash(String content) {
-        long hash = 0xcbf29ce484222325L;
-        for (byte b : content.getBytes()) {
-            hash ^= (b & 0xff);
-            hash *= 0x100000001b3L;
-        }
-        return Long.toHexString(hash);
     }
 
     private int calculateSize(String[] lines, int startLine, int endLine) {

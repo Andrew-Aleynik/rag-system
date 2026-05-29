@@ -12,4 +12,6 @@ public class Task {
     private TaskType type;
     private TaskStatus status;
     private LocalDateTime updatedAt;
+    private String username;
+    private String password;
 }

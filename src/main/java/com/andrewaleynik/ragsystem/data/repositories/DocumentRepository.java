@@ -1,6 +1,6 @@
 package com.andrewaleynik.ragsystem.data.repositories;
 
-import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
+import com.andrewaleynik.ragsystem.data.entities.Document;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
@@ -12,11 +12,14 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface DocumentRepository extends CrudRepository<DocumentJpaEntity, Long> {
-    List<DocumentJpaEntity> findAllByProjectId(Long projectId);
+public interface DocumentRepository extends CrudRepository<Document, Long> {
+    List<Document> findAllByProjectId(Long projectId);
 
-    Optional<DocumentJpaEntity> findByProjectIdAndLocalPath(Long projectId, String localPath);
+    Optional<Document> findByProjectIdAndLocalPath(Long projectId, String localPath);
 
     @Query("SELECT d FROM Document d JOIN d.collections c WHERE c.id = :collectionId")
-    Page<DocumentJpaEntity> findByCollectionId(@Param("collectionId") Long collectionId, Pageable pageable);
+    Page<Document> findByCollectionId(@Param("collectionId") Long collectionId, Pageable pageable);
+
+    @Query("SELECT d FROM Document d WHERE d.projectId = :projectId")
+    Page<Document> findByProjectId(@Param("projectId") Long projectId, Pageable pageable);
 }

@@ -1,31 +1,30 @@
 package com.andrewaleynik.ragsystem.chunkers;
 
-import com.andrewaleynik.ragsystem.domains.ChunkDomain;
-import com.andrewaleynik.ragsystem.domains.DocumentDomain;
+import com.andrewaleynik.ragsystem.data.entities.Chunk;
+import com.andrewaleynik.ragsystem.data.entities.Document;
 import com.andrewaleynik.ragsystem.exceptions.ChunkingException;
-import com.andrewaleynik.ragsystem.factories.ChunkFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
-import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
 
 @RequiredArgsConstructor
-public class DefaultChunker implements Chunker {
+public class DefaultChunker extends AbstractChunker {
     private final int maxChunkSize;
     private final float overlap;
 
     @Override
-    public List<ChunkDomain> chunkDocument(DocumentDomain document) throws ChunkingException, IOException {
-        String content = Files.readString(document.getLocalPathAsPath());
+    public List<Chunk> chunkDocument(Document document) throws ChunkingException, IOException {
+        String content = readFileWithAutoEncoding(Path.of(document.getLocalPath()));
 
         if (content == null || content.isEmpty()) {
             return new ArrayList<>();
         }
 
-        List<ChunkDomain> chunks = new ArrayList<>();
+        List<Chunk> chunks = new ArrayList<>();
 
         int step = (int) (maxChunkSize * (1 - overlap));
 
@@ -33,11 +32,11 @@ public class DefaultChunker implements Chunker {
 
         for (int i = 0; i < chunkContents.size(); i++) {
             String chunkContent = chunkContents.get(i);
-            ChunkDomain chunk = new ChunkFactory()
-                    .withContent(chunkContent)
-                    .withSizeBytes(chunkContent.length())
-                    .withHash(computeHash(chunkContent))
-                    .createDomain();
+            Chunk chunk = Chunk.builder()
+                    .content(chunkContent)
+                    .sizeBytes(chunkContent.length())
+                    .hash(computeHash(chunkContent))
+                    .build();
 
             chunk.setDocumentId(document.getId());
             chunk.setIndex(i);
@@ -95,15 +94,5 @@ public class DefaultChunker implements Chunker {
         }
 
         return position;
-    }
-
-    // FNV-1a
-    private String computeHash(String content) {
-        long hash = 0xcbf29ce484222325L;
-        for (byte b : content.getBytes()) {
-            hash ^= (b & 0xff);
-            hash *= 0x100000001b3L;
-        }
-        return Long.toHexString(hash);
     }
 }

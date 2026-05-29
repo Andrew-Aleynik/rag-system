@@ -1,9 +1,10 @@
 package com.andrewaleynik.ragsystem.app.controllers;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.*;
-import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectListResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.ProjectResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
+import com.andrewaleynik.ragsystem.app.dto.request.project.*;
+import com.andrewaleynik.ragsystem.app.dto.response.DocumentListResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.ProjectListResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.ProjectResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.TaskStatusResponse;
 import com.andrewaleynik.ragsystem.app.services.ProjectCrudService;
 import com.andrewaleynik.ragsystem.app.services.core.ProjectIndexService;
 import com.andrewaleynik.ragsystem.app.services.core.ProjectSyncService;
@@ -150,6 +151,24 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{id}/documents")
+    @Operation(summary = "Get collection documents", description = "Retrieves all documents in the project")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Documents retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = DocumentListResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Project not found")
+    })
+    public ResponseEntity<DocumentListResponse> getCollectionDocuments(
+            @Parameter(description = "Project ID", required = true)
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        log.info("Retrieving documents for collection {} (page: {}, size: {})", id, page, size);
+        DocumentListResponse response = projectCrudService.getProjectDocuments(id, page, size);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/{id}/sync")
     @Operation(summary = "Sync project", description = "Starts synchronization of project files")
     @ApiResponses(value = {
@@ -160,10 +179,15 @@ public class ProjectController {
     })
     public ResponseEntity<TaskStatusResponse> syncProject(
             @Parameter(description = "Project ID", required = true)
-            @PathVariable Long id
+            @PathVariable Long id,
+            @Parameter(description = "Username if auth required", required = false)
+            @RequestParam(required = false) String username,
+            @Parameter(description = "Password if auth required", required = false)
+            @RequestParam(required = false) String password
+
     ) {
         log.info("Starting sync for project with id: {}", id);
-        ProjectSyncRequest request = new ProjectSyncRequest(id);
+        ProjectSyncRequest request = new ProjectSyncRequest(id, username, password);
         TaskStatusResponse response = projectSyncService.tryStartSyncProject(request);
 
         HttpStatus status = switch (response.status()) {

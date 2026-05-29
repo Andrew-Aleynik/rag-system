@@ -1,7 +1,7 @@
 package com.andrewaleynik.ragsystem.app.controllers;
 
-import com.andrewaleynik.ragsystem.app.dto.project.response.TaskListResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.TaskResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.TaskListResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.TaskResponse;
 import com.andrewaleynik.ragsystem.app.services.core.TaskService;
 import com.andrewaleynik.ragsystem.domains.Task;
 import io.swagger.v3.oas.annotations.Operation;

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAG System Admin Panel</title>
+  <link rel="stylesheet" href="/css/admin.css">
+  <script src="/js/admin.js" defer></script>
+  <base target="_blank">
+</head>
+<body>
+<div class="layout">
+  <!-- Left Panel: Projects -->
+  <div class="panel panel-projects">
+    <h2>Projects</h2>
+
+    <div class="section">
+      <h3>Create Project</h3>
+      <form id="createProjectForm">
+        <input type="text" name="name" placeholder="Project Name" required>
+        <input type="text" name="url" placeholder="Git URL" required>
+        <input type="text" name="defaultBranch" placeholder="Default Branch (e.g., main)" required>
+        <select name="sourceType" required>
+          <option value="GIT">GIT</option>
+        </select>
+        <button type="submit">Create</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h3>Select Project</h3>
+      <select id="projectSelect">
+        <option value="">-- Select Project --</option>
+      </select>
+      <input id="username" type="text" name="username" placeholder="Username (if need credentials)">
+      <input id="password" type="text" name="password" placeholder="Password (if need credentials)">
+      <div id="projectInfo" class="info-card" style="display:none;">
+        <div class="info-row"><span class="info-label">ID:</span> <span id="pi-id"></span></div>
+        <div class="info-row"><span class="info-label">Documents:</span> <span id="pi-docs"></span></div>
+        <div class="info-row"><span class="info-label">Active:</span> <span id="pi-active"></span></div>
+        <div class="info-row"><span class="info-label">Synced:</span> <span id="pi-synced"></span></div>
+        <div class="info-row"><span class="info-label">Indexed:</span> <span id="pi-indexed"></span></div>
+      </div>
+      <div class="action-row">
+        <button onclick="syncProject()">Sync</button>
+        <button onclick="indexProject()">Index</button>
+        <button onclick="activateProject()">Activate</button>
+        <button onclick="deactivateProject()">Deactivate</button>
+        <button onclick="deleteProject()" class="danger">Delete</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Project Documents</h3>
+      <div id="projectDocumentsList" class="list"></div>
+      <div id="projectDocsPagination" class="pagination"></div>
+    </div>
+  </div>
+
+  <!-- Center Panel: Collections -->
+  <div class="panel panel-collections">
+    <h2>Collections</h2>
+
+    <div class="section">
+      <h3>Create Collection</h3>
+      <form id="createCollectionForm">
+        <input type="text" name="name" placeholder="Collection Name" required>
+        <button type="submit">Create</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h3>Select Collection</h3>
+      <select id="collectionSelect">
+        <option value="">-- Select Collection --</option>
+      </select>
+      <div id="collectionInfo" class="info-card" style="display:none;">
+        <div class="info-row"><span class="info-label">ID:</span> <span id="ci-id"></span></div>
+        <div class="info-row"><span class="info-label">Documents:</span> <span id="ci-docs"></span></div>
+        <div class="info-row"><span class="info-label">Active:</span> <span id="ci-active"></span></div>
+        <div class="info-row"><span class="info-label">Indexed:</span> <span id="ci-indexed"></span></div>
+      </div>
+      <div class="action-row">
+        <button onclick="indexCollection()">Index</button>
+        <button onclick="activateCollection()">Activate</button>
+        <button onclick="deactivateCollection()">Deactivate</button>
+        <button onclick="deleteCollection()" class="danger">Delete</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Collection Documents</h3>
+      <div id="collectionDocumentsList" class="list"></div>
+      <div id="collectionDocsPagination" class="pagination"></div>
+    </div>
+
+    <div class="section">
+      <h3>Retrieve</h3>
+      <form id="retrieveForm">
+        <input type="text" name="query" placeholder="Enter your query" required>
+        <button type="submit">Search</button>
+      </form>
+      <div id="retrieveResults" class="list"></div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Tasks -->
+  <div class="panel panel-tasks">
+    <h2>Tasks</h2>
+    <button onclick="loadTasks()" class="refresh-btn">Refresh Now</button>
+    <div id="tasksList" class="list"></div>
+  </div>
+</div>
+</body>
+</html>

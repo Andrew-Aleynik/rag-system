@@ -9,13 +9,13 @@ spring:
         port: ${QDRANT_PORT:6334}
         use-tls: ${QDRANT_USE_TLS:false}
     embedding:
-      provider: ${EMBED_PROVIDER:openai}
+      provider: ${EMBED_PROVIDER:ollama}
     openai:
-      api-key: ${OPENAI_API_KEY:sk-default-key}
+      api-key: ${OPENAI_API_KEY:sk-Oa6RAKhVLsUqHaa2YjPWvi72XO_Y2K-N}
+      base-url: ${OPENAI_BASE_URL:https://routerai.ru/api}
       embedding:
         options:
-          model: ${OPENAI_EMBED_MODEL:text-embedding-3-small}
-          dimensions: ${OPENAI_EMBED_SIZE:1536}
+          model: ${OPENAI_EMBED_MODEL:mistralai/codestral-embed-2505}
           encoding-format: float
     ollama:
       base-url: ${OLLAMA_URL:http://localhost:11434}
@@ -44,19 +44,21 @@ spring:
     open-in-view: false
 services:
   task:
-    cleanup_period_millis: ${TASK_CLEANUP_PERIOD:60000}
-    permitted_count_synchronous_tasks: ${TASK_SIMULTANEOUS:1}
+    cleanup_period_millis: ${TASK_CLEANUP_PERIOD:1000}
+    permitted_count_synchronous_tasks: ${TASK_SIMULTANEOUS:10}
   retrieve:
-    top_k: ${RETRIEVE_TOP_K:5}
-    similarity_threshold: ${RETRIEVE_SIMILARITY_THRESHOLD:0.7}
-    max_results: ${RETRIEVE_MAX_COUNT:10}
-    context_chunks_before: ${RETRIEVE_RADIUS:2}
-    context_chunks_after: ${RETRIEVE_RADIUS:2}
+    top_k: ${RETRIEVE_TOP_K:3}
+    similarity_threshold: ${RETRIEVE_SIMILARITY_THRESHOLD:0.65}
+    max_results: ${RETRIEVE_MAX_COUNT:3}
+    context_chunks_before: ${RETRIEVE_RADIUS:1}
+    context_chunks_after: ${RETRIEVE_RADIUS:1}
 config:
   chunker:
     max_size: ${CHUNK_MAX_SIZE:700}
-    min_payload_size: ${CHUNK_MIN_PAYLOAD:200}
-    overlap: ${CHUNK_OVERLAP:0.2}
+    min_payload_size: ${CHUNK_MIN_PAYLOAD:300}
+    overlap: ${CHUNK_OVERLAP:0.1}
+projects:
+  root-path: ${user.home}/rag-system/projects
 
 
 

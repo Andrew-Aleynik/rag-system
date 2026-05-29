@@ -1,9 +1,9 @@
 package com.andrewaleynik.ragsystem.app.services.rag;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.AugmentRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.request.RetrieveRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.AugmentResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.RetrieveResponse;
+import com.andrewaleynik.ragsystem.app.dto.request.AugmentRequest;
+import com.andrewaleynik.ragsystem.app.dto.request.RetrieveRequest;
+import com.andrewaleynik.ragsystem.app.dto.response.AugmentResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.RetrieveResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.Collections;
 
 @Slf4j
 @Service
@@ -44,14 +46,18 @@ public class AugmentService {
                 }
 
                 if (userQuery != null) {
-                    RetrieveRequest retrieveRequest = new RetrieveRequest(userQuery);
+                    RetrieveRequest retrieveRequest = new RetrieveRequest(userQuery, Collections.emptyList());
                     RetrieveResponse retrieveResponse = retrieveService.retrieveChunks(retrieveRequest);
 
                     StringBuilder ragContext = new StringBuilder();
                     ragContext.append("\n\nRelevant context:");
-                    retrieveResponse.chunks().forEach(chunk -> {
+                    retrieveResponse.localPathChunks().forEach((localPath, chunks) -> {
+                        ragContext.append(localPath);
                         ragContext.append("\n");
-                        ragContext.append(chunk.getContent());
+                        chunks.forEach(chunk -> {
+                            ragContext.append(chunk.getContent());
+                            ragContext.append("\n");
+                        });
                     });
                     ragContext.append("\n\nBased on the above context, please answer the following question:\n");
 

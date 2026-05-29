@@ -1,12 +1,10 @@
 package com.andrewaleynik.ragsystem.factories;
 
-import com.andrewaleynik.ragsystem.data.ChunkData;
-import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
-import com.andrewaleynik.ragsystem.domains.ChunkDomain;
+import com.andrewaleynik.ragsystem.data.entities.Chunk;
 
 import java.time.LocalDateTime;
 
-public class ChunkFactory implements Factory<ChunkDomain, ChunkJpaEntity> {
+public class ChunkFactory implements Factory<ChunkDomain, Chunk> {
     private Long id;
     private Long vectorId;
     private Long documentId;
@@ -83,8 +81,8 @@ public class ChunkFactory implements Factory<ChunkDomain, ChunkJpaEntity> {
     }
 
     @Override
-    public ChunkJpaEntity createEntity() {
-        ChunkJpaEntity entity = new ChunkJpaEntity();
+    public Chunk createEntity() {
+        Chunk entity = new Chunk();
         setCommonFields(entity);
         return entity;
     }

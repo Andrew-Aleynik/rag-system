@@ -1,16 +1,16 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.data.entities.CollectionJpaEntity;
-import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
-import com.andrewaleynik.ragsystem.data.mappers.CollectionMapper;
-import com.andrewaleynik.ragsystem.data.mappers.ProjectMapper;
+import com.andrewaleynik.ragsystem.data.entities.Collection;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import com.andrewaleynik.ragsystem.data.repositories.CollectionRepository;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
-import com.andrewaleynik.ragsystem.domains.*;
-import com.andrewaleynik.ragsystem.factories.CollectionFactory;
-import com.andrewaleynik.ragsystem.factories.ProjectFactory;
+import com.andrewaleynik.ragsystem.domains.Task;
+import com.andrewaleynik.ragsystem.domains.TaskId;
+import com.andrewaleynik.ragsystem.domains.TaskStatus;
+import com.andrewaleynik.ragsystem.domains.TaskType;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -19,13 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.IOException;
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AsyncService {
     private final ProjectRepository projectRepository;
     private final CollectionRepository collectionRepository;
-    private final ProjectMapper projectMapper;
-    private final CollectionMapper collectionMapper;
     private final TaskService taskService;
     private final GitRepositoryService gitRepositoryService;
     private final IndexService indexService;
@@ -33,23 +32,25 @@ public class AsyncService {
     @Async("threadPoolTaskExecutor")
     @Transactional
     public void syncProject(TaskId taskId) {
-        ProjectJpaEntity entity = projectRepository.findById(taskId.entityId())
+        Project project = projectRepository.findById(taskId.entityId())
                 .orElseThrow(() -> new EntityNotFoundException("Project not found: " + taskId.entityId()));
-        ProjectDomain domain = ProjectFactory.from(entity).createDomain();
         boolean acquired = false;
         try {
             taskService.acquireSemaphore(TaskType.SYNCING);
             acquired = true;
             taskService.updateStatus(taskId, TaskStatus.IN_PROCESS);
-            gitRepositoryService.syncProject(domain);
-            gitRepositoryService.updateRepositoryInfo(domain);
-            domain.setSyncedAt(LocalDateTime.now());
-            saveUpdatedProject(domain, entity);
+            Task task = taskService.getTask(taskId).get();
+            gitRepositoryService.syncProject(project, task.getUsername(), task.getPassword());
+            gitRepositoryService.updateRepositoryInfo(project);
+            project.setSyncedAt(LocalDateTime.now());
+            projectRepository.save(project);
             taskService.updateStatus(taskId, TaskStatus.DONE);
         } catch (InterruptedException e) {
+            log.error("Error during syncing project: ", e);
             Thread.currentThread().interrupt();
             taskService.updateStatus(taskId, TaskStatus.FAILED);
         } catch (GitAPIException | IOException e) {
+            log.error("Error during syncing project: ", e);
             taskService.updateStatus(taskId, TaskStatus.FAILED);
         } finally {
             if (acquired) {
@@ -61,20 +62,22 @@ public class AsyncService {
     @Async("threadPoolTaskExecutor")
     @Transactional
     public void indexProject(TaskId taskId) {
-        ProjectJpaEntity entity = projectRepository.findById(taskId.entityId())
+        Project project = projectRepository.findById(taskId.entityId())
                 .orElseThrow(() -> new EntityNotFoundException("Project not found: " + taskId.entityId()));
-        ProjectDomain domain = ProjectFactory.from(entity).createDomain();
         boolean acquired = false;
         try {
             taskService.acquireSemaphore(TaskType.INDEXING);
             acquired = true;
             taskService.updateStatus(taskId, TaskStatus.IN_PROCESS);
-            indexService.indexNamedDocumentContainer(domain);
-            domain.setIndexedAt(LocalDateTime.now());
-            saveUpdatedProject(domain, entity);
+            indexService.indexNamedDocumentContainer(project);
+            project.setIndexedAt(LocalDateTime.now());
+            projectRepository.save(project);
             taskService.updateStatus(taskId, TaskStatus.DONE);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            taskService.updateStatus(taskId, TaskStatus.FAILED);
+        } catch (RuntimeException e) {
+            log.error("Error during indexing project: ", e);
             taskService.updateStatus(taskId, TaskStatus.FAILED);
         } finally {
             if (acquired) {
@@ -86,35 +89,28 @@ public class AsyncService {
     @Async("threadPoolTaskExecutor")
     @Transactional
     public void indexCollection(TaskId taskId) {
-        CollectionJpaEntity entity = collectionRepository.findById(taskId.entityId())
+        Collection collection = collectionRepository.findById(taskId.entityId())
                 .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + taskId.entityId()));
-        CollectionDomain domain = CollectionFactory.from(entity).createDomain();
         boolean acquired = false;
         try {
             taskService.acquireSemaphore(TaskType.INDEXING);
             acquired = true;
             taskService.updateStatus(taskId, TaskStatus.IN_PROCESS);
-            indexService.indexNamedDocumentContainer(domain);
-            domain.setIndexedAt(LocalDateTime.now());
-            saveUpdatedCollection(domain, entity);
+            indexService.indexNamedDocumentContainer(collection);
+            collection.setIndexedAt(LocalDateTime.now());
+            collectionRepository.save(collection);
             taskService.updateStatus(taskId, TaskStatus.DONE);
         } catch (InterruptedException e) {
+            log.error("Error during indexing collection: ", e);
             Thread.currentThread().interrupt();
+            taskService.updateStatus(taskId, TaskStatus.FAILED);
+        } catch (RuntimeException e) {
+            log.error("Error during indexing collection: ", e);
             taskService.updateStatus(taskId, TaskStatus.FAILED);
         } finally {
             if (acquired) {
                 taskService.releaseSemaphore(TaskType.INDEXING);
             }
         }
-    }
-
-    private void saveUpdatedProject(ProjectDomain domain, ProjectJpaEntity entity) {
-        projectMapper.updateEntity(domain, entity);
-        projectRepository.save(entity);
-    }
-
-    private void saveUpdatedCollection(CollectionDomain domain, CollectionJpaEntity entity) {
-        collectionMapper.updateEntity(domain, entity);
-        collectionRepository.save(entity);
     }
 }

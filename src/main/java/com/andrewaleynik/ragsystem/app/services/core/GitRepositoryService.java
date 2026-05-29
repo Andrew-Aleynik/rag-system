@@ -1,18 +1,16 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
+import com.andrewaleynik.ragsystem.config.ExVectorStore;
 import com.andrewaleynik.ragsystem.config.VectorStoreConfig;
-import com.andrewaleynik.ragsystem.data.ChunkData;
-import com.andrewaleynik.ragsystem.data.DocumentData;
-import com.andrewaleynik.ragsystem.data.entities.ChunkJpaEntity;
-import com.andrewaleynik.ragsystem.data.entities.DocumentJpaEntity;
-import com.andrewaleynik.ragsystem.data.mappers.DocumentMapper;
+import com.andrewaleynik.ragsystem.data.entities.Chunk;
+import com.andrewaleynik.ragsystem.data.entities.Document;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import com.andrewaleynik.ragsystem.data.repositories.ChunkRepository;
 import com.andrewaleynik.ragsystem.data.repositories.DocumentRepository;
-import com.andrewaleynik.ragsystem.domains.DocumentDomain;
-import com.andrewaleynik.ragsystem.domains.ProjectDomain;
-import com.andrewaleynik.ragsystem.factories.DocumentFactory;
 import lombok.RequiredArgsConstructor;
+import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.PullCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.FileMode;
@@ -20,8 +18,9 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
+import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.jgit.treewalk.TreeWalk;
-import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -41,7 +40,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class GitRepositoryService {
     private final DocumentRepository documentRepository;
-    private final DocumentMapper documentMapper;
     private final ChunkRepository chunkRepository;
     private final FileHashService fileHashService;
     private final VectorStoreConfig vectorStoreConfig;
@@ -50,18 +48,17 @@ public class GitRepositoryService {
             "java", "md", "txt", "xml", "yml", "yaml", "json", "properties", "sql"
     );
 
-    public void syncProject(ProjectDomain domain) throws GitAPIException, IOException {
-        Path localPath = domain.getLocalPathAsPath();
+    public void syncProject(Project project, String username, String password) throws GitAPIException, IOException {
+        Path localPath = Path.of(project.getLocalPath());
         if (!Files.exists(localPath.resolve(".git"))) {
-            clone(domain.getUrl(), localPath, domain.getDefaultBranch());
+            clone(project.getUrl(), localPath, project.getDefaultBranch(), username, password);
         } else {
-            pull(localPath);
+            pull(localPath, username, password);
         }
     }
 
-    public void updateRepositoryInfo(ProjectDomain project) throws IOException {
-        Path localPath = project.getLocalPathAsPath();
-
+    public void updateRepositoryInfo(Project project) throws IOException {
+        Path localPath = Path.of(project.getLocalPath());
         try (Git git = Git.open(localPath.toFile());
              Repository repository = git.getRepository()) {
             updateProjectMetadata(project, repository);
@@ -69,7 +66,7 @@ public class GitRepositoryService {
         }
     }
 
-    private void updateProjectMetadata(ProjectDomain project, Repository repository)
+    private void updateProjectMetadata(Project project, Repository repository)
             throws IOException {
 
         ObjectId head = repository.resolve(Constants.HEAD);
@@ -93,13 +90,13 @@ public class GitRepositoryService {
         }
     }
 
-    private void scanAndUpdateDocuments(ProjectDomain project, Repository repository)
+    private void scanAndUpdateDocuments(Project project, Repository repository)
             throws IOException {
-        VectorStore vectorStore = vectorStoreConfig.getOrCreateVectorStore(project);
+        ExVectorStore vectorStore = vectorStoreConfig.getOrCreateVectorStore(project);
 
         ObjectId head = repository.resolve(Constants.HEAD);
-        Map<String, DocumentJpaEntity> existingDocs = loadExistingDocuments(project.getId());
-        Map<String, DocumentJpaEntity> updatedDocs = new HashMap<>();
+        Map<String, Document> existingDocs = loadExistingDocuments(project.getId());
+        Map<String, Document> updatedDocs = new HashMap<>();
 
         try (RevWalk revWalk = new RevWalk(repository);
              TreeWalk treeWalk = new TreeWalk(repository)) {
@@ -114,9 +111,9 @@ public class GitRepositoryService {
                 }
 
                 String relativePath = treeWalk.getPathString();
-                Path fullPath = project.getLocalPathAsPath().resolve(relativePath);
+                Path fullPath = Path.of(project.getLocalPath()).resolve(relativePath);
 
-                DocumentJpaEntity document = existingDocs.getOrDefault(
+                Document document = existingDocs.getOrDefault(
                         fullPath.toString(),
                         createNewDocument(project.getId(), fullPath)
                 );
@@ -126,31 +123,31 @@ public class GitRepositoryService {
             }
         }
 
-        List<DocumentJpaEntity> toDelete = existingDocs.values().stream()
+        List<Document> toDelete = existingDocs.values().stream()
                 .filter(doc -> !updatedDocs.containsKey(doc.getLocalPath()))
                 .toList();
 
         if (!toDelete.isEmpty()) {
             documentRepository.deleteAll(toDelete);
-            for (DocumentData documentData : toDelete) {
-                List<ChunkJpaEntity> chunks = chunkRepository.findAllByDocumentId(documentData.getId());
+            for (Document documentData : toDelete) {
+                List<Chunk> chunks = chunkRepository.findAllByDocumentId(documentData.getId());
                 List<Long> ids = chunks.stream()
-                        .map(ChunkData::getId)
+                        .map(Chunk::getId)
                         .toList();
                 List<String> vectorIds = chunks.stream()
-                        .map(ChunkData::getVectorId)
+                        .map(Chunk::getVectorId)
                         .toList();
-                vectorStore.delete(vectorIds);
+                vectorStore.vectorStore().delete(vectorIds);
                 chunkRepository.deleteAllById(ids);
             }
         }
         documentRepository.saveAll(updatedDocs.values());
     }
 
-    private Map<String, DocumentJpaEntity> loadExistingDocuments(Long projectId) {
+    private Map<String, Document> loadExistingDocuments(Long projectId) {
         return documentRepository.findAllByProjectId(projectId).stream()
                 .collect(Collectors.toMap(
-                        DocumentJpaEntity::getLocalPath,
+                        Document::getLocalPath,
                         Function.identity(),
                         (a, b) -> a
                 ));
@@ -168,32 +165,28 @@ public class GitRepositoryService {
         return SUPPORTED_EXTENSIONS.contains(extension.toLowerCase());
     }
 
-    private DocumentJpaEntity createNewDocument(Long projectId, Path fullPath) {
+    private Document createNewDocument(Long projectId, Path fullPath) {
         String fileName = fullPath.getFileName().toString();
 
-        return new DocumentFactory()
-                .withProjectId(projectId)
-                .withLocalPath(fullPath.toString())
-                .withFileName(fileName)
-                .withFileExtension(getFileExtension(fileName))
-                .withFileHash("")
-                .withCreatedAt(LocalDateTime.now())
-                .withUpdatedAt(LocalDateTime.now())
-                .createEntity();
+        return Document.builder()
+                .projectId(projectId)
+                .localPath(fullPath.toString())
+                .fileName(fileName)
+                .fileExtension(getFileExtension(fileName))
+                .fileHash("")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
     }
 
-    private void updateDocumentIfChanged(DocumentJpaEntity document, Path fullPath) {
+    private void updateDocumentIfChanged(Document document, Path fullPath) {
         try {
             String currentHash = fileHashService.calculateHash(fullPath);
             String storedHash = document.getFileHash();
 
             if (!currentHash.equals(storedHash)) {
-                DocumentDomain domain = DocumentFactory.from(document).createDomain();
-
-                domain.setFileHash(currentHash);
-                domain.setUpdatedAt(LocalDateTime.now());
-
-                documentMapper.updateEntity(domain, document);
+                document.setFileHash(currentHash);
+                document.setUpdatedAt(LocalDateTime.now());
             }
         } catch (IOException e) {
             //TODO logging
@@ -219,17 +212,28 @@ public class GitRepositoryService {
         return lastDot == -1 ? "" : filename.substring(lastDot + 1);
     }
 
-    private void clone(String url, Path target, String branch) throws GitAPIException {
-        Git.cloneRepository()
+    private void clone(String url, Path target, String branch, String username, String password) throws GitAPIException {
+        CloneCommand command = Git.cloneRepository()
                 .setURI(url)
                 .setDirectory(target.toFile())
-                .setBranch(branch)
-                .call();
+                .setBranch(branch);
+        if (username != null) {
+            CredentialsProvider credentialsProvider =
+                    new UsernamePasswordCredentialsProvider(username, password);
+            command = command.setCredentialsProvider(credentialsProvider);
+        }
+        command.call();
     }
 
-    private void pull(Path localPath) throws GitAPIException, IOException {
+    private void pull(Path localPath, String username, String password) throws GitAPIException, IOException {
         try (Git git = Git.open(localPath.toFile())) {
-            git.pull().call();
+            PullCommand command = git.pull();
+            if (username != null) {
+                CredentialsProvider credentialsProvider =
+                        new UsernamePasswordCredentialsProvider(username, password);
+                command = command.setCredentialsProvider(credentialsProvider);
+            }
+            command.call();
         }
     }
 }

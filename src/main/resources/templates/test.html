@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>RAG System Admin Panel</title>
+    <script src="/js/test.js" defer></script>
+    <base target="_blank">
+</head>
+<body>
+<h1>RAG System Administration</h1>
+
+<!-- Projects Section -->
+<h2>Projects</h2>
+
+<div>
+    <h3>Create Project</h3>
+    <form id="createProjectForm">
+        <input type="text" name="name" placeholder="Project Name" required>
+        <input type="text" name="url" placeholder="Git URL" required>
+        <input type="text" name="defaultBranch" placeholder="Default Branch (e.g., main)" required>
+        <select name="sourceType" required>
+            <option value="GIT">GIT</option>
+        </select>
+        <button type="submit">Create Project</button>
+    </form>
+</div>
+
+<div>
+    <h3>Update Project</h3>
+    <form id="updateProjectForm">
+        <input type="number" name="id" placeholder="Project ID" required>
+        <input type="text" name="name" placeholder="New Project Name">
+        <input type="text" name="defaultBranch" placeholder="New Default Branch">
+        <button type="submit">Update Project</button>
+    </form>
+</div>
+
+<div>
+    <h3>All Projects</h3>
+    <button onclick="loadProjects()">Load Projects</button>
+    <div id="projectsList"></div>
+</div>
+
+<div>
+    <h3>Get Project by ID</h3>
+    <form id="getProjectForm">
+        <input type="number" name="projectId" placeholder="Project ID" required>
+        <button type="submit">Get Project</button>
+    </form>
+</div>
+
+<div>
+    <h3>Project Actions</h3>
+    <form id="projectActionForm" onsubmit="return false;">
+        <input type="number" name="projectId" placeholder="Project ID" required>
+        <button type="button" onclick="syncProject()">Sync</button>
+        <button type="button" onclick="indexProject()">Index</button>
+        <button type="button" onclick="activateProject()">Activate</button>
+        <button type="button" onclick="deactivateProject()">Deactivate</button>
+        <button type="button" onclick="deleteProject()" style="color: red;">Delete</button>
+    </form>
+</div>
+
+<div>
+    <h3>Project Documents</h3>
+    <form id="projectDocumentsForm" onsubmit="return false;">
+        <input type="number" name="projectId" placeholder="Project ID" required>
+        <button type="button" onclick="getProjectDocuments()">Get Documents</button>
+    </form>
+    <div id="projectDocumentsList"></div>
+</div>
+
+<hr>
+
+<!-- Collections Section -->
+<h2>Collections</h2>
+
+<div>
+    <h3>Create Collection</h3>
+    <form id="createCollectionForm">
+        <input type="text" name="name" placeholder="Collection Name" required>
+        <button type="submit">Create Collection</button>
+    </form>
+</div>
+
+<div>
+    <h3>Update Collection</h3>
+    <form id="updateCollectionForm">
+        <input type="number" name="id" placeholder="Collection ID" required>
+        <input type="text" name="name" placeholder="New Collection Name">
+        <button type="submit">Update Collection</button>
+    </form>
+</div>
+
+<div>
+    <h3>All Collections</h3>
+    <button onclick="loadCollections()">Load Collections</button>
+    <div id="collectionsList"></div>
+</div>
+
+<div>
+    <h3>Get Collection by ID</h3>
+    <form id="getCollectionForm">
+        <input type="number" name="collectionId" placeholder="Collection ID" required>
+        <button type="submit">Get Collection</button>
+    </form>
+</div>
+
+<div>
+    <h3>Collection Actions</h3>
+    <form id="collectionActionForm" onsubmit="return false;">
+        <input type="number" name="collectionId" placeholder="Collection ID" required>
+        <button type="button" onclick="indexCollection()">Index</button>
+        <button type="button" onclick="activateCollection()">Activate</button>
+        <button type="button" onclick="deactivateCollection()">Deactivate</button>
+        <button type="button" onclick="deleteCollection()" style="color: red;">Delete</button>
+    </form>
+</div>
+
+<div>
+    <h3>Collection Documents</h3>
+    <form id="collectionDocumentsForm" onsubmit="return false;">
+        <input type="number" name="collectionId" placeholder="Collection ID" required>
+        <button type="button" onclick="getCollectionDocuments()">Get Documents</button>
+    </form>
+    <div id="collectionDocumentsList"></div>
+</div>
+
+<div>
+    <h3>Manage Collection Documents</h3>
+    <form id="manageCollectionDocumentsForm" onsubmit="return false;">
+        <input type="number" name="collectionId" placeholder="Collection ID" required>
+        <input type="text" name="documentIds" placeholder="Document IDs (comma-separated)" required>
+        <button type="button" onclick="addDocumentsToCollection()">Add Documents</button>
+        <button type="button" onclick="removeDocumentsFromCollection()">Remove Documents</button>
+    </form>
+</div>
+
+<hr>
+
+<!-- Tasks Section -->
+<h2>Tasks</h2>
+<button onclick="loadTasks()">Load All Tasks</button>
+<div id="tasksList"></div>
+
+<hr>
+
+<!-- Response Display -->
+<h2>Response</h2>
+<pre id="responseArea" style="background-color: #f5f5f5; padding: 10px; border: 1px solid #ccc;"></pre>
+
+<!-- Retrieve Section -->
+<h2>Retrieve</h2>
+<form id="retrieveForm">
+    <input type="text" name="query" placeholder="Enter your query" required style="width: 300px;">
+    <button type="submit">Search</button>
+</form>
+<div id="retrieveResults"></div>
+
+<hr>
+</body>
+</html>

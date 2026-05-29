@@ -1,9 +1,12 @@
 package com.andrewaleynik.ragsystem.config;
 
-import com.andrewaleynik.ragsystem.data.CollectionData;
-import com.andrewaleynik.ragsystem.data.ProjectData;
+import com.andrewaleynik.ragsystem.data.DocumentContainer;
+import com.andrewaleynik.ragsystem.data.entities.Collection;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import io.qdrant.client.QdrantClient;
 import io.qdrant.client.QdrantGrpcClient;
+import io.qdrant.client.grpc.Collections;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
@@ -22,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class VectorStoreConfig {
 
+    @Getter
     private final EmbeddingModel embeddingModel;
 
     @Value("${spring.ai.vectorestore.qdrant.host:localhost}")
@@ -36,7 +40,7 @@ public class VectorStoreConfig {
     @Value("${spring.ai.vectorestore.qdrant.api-key:}")
     private String apiKey;
 
-    private final Map<String, VectorStore> vectorStores = new ConcurrentHashMap<>();
+    private final Map<String, ExVectorStore> vectorStores = new ConcurrentHashMap<>();
 
     @Bean
     public QdrantClient qdrantClient() {
@@ -51,41 +55,58 @@ public class VectorStoreConfig {
         return new QdrantClient(builder.build());
     }
 
-    public VectorStore getOrCreateVectorStore(ProjectData projectData) {
+    public ExVectorStore getOrCreateVectorStore(Project projectData) {
         String collectionName = "project_" + projectData.getId();
+        return getOrCreateVectorStoreInternal(collectionName, projectData);
+    }
 
+    public ExVectorStore getOrCreateVectorStore(Collection collection) {
+        String collectionName = "collection_" + collection.getId();
+        return getOrCreateVectorStoreInternal(collectionName, collection);
+    }
+
+    private ExVectorStore getOrCreateVectorStoreInternal(String collectionName, DocumentContainer documentContainer) {
         return vectorStores.computeIfAbsent(collectionName, id -> {
-            log.info("Creating new VectorStore for project: {} (store: {})",
-                    projectData.getName(), collectionName);
+            QdrantClient client = qdrantClient();
 
-            return QdrantVectorStore.builder(qdrantClient(), embeddingModel)
+            try {
+                boolean exists = client.collectionExistsAsync(collectionName).get();
+
+                if (!exists) {
+                    log.info("Creating new VectorStore for: {}, collection: {}", documentContainer.getName(), collectionName);
+                    log.info("Embedding vector size: {}", embeddingModel.dimensions());
+
+                    client.createCollectionAsync(collectionName,
+                            Collections.VectorParams.newBuilder()
+                                    .setSize(embeddingModel.dimensions())
+                                    .setDistance(Collections.Distance.Cosine)
+                                    .build()
+                    ).get();
+
+                    log.info("Collection {} created in Qdrant", collectionName);
+                }
+            } catch (Exception e) {
+                log.error("Failed to create collection {} in Qdrant: {}", collectionName, e.getMessage());
+                throw new RuntimeException("Cannot create Qdrant collection: " + collectionName, e);
+            }
+
+            VectorStore store = QdrantVectorStore.builder(client, embeddingModel)
                     .collectionName(collectionName)
-                    .initializeSchema(true)
+                    .initializeSchema(false)
                     .build();
+
+            log.info("VectorStore fetched successfully: {}", collectionName);
+            return new ExVectorStore(collectionName, store);
         });
     }
 
-    public VectorStore getOrCreateVectorStore(CollectionData collectionData) {
-        String collectionName = "collection_" + collectionData.getId();
-
-        return vectorStores.computeIfAbsent(collectionName, id -> {
-            log.info("Creating new VectorStore for collection: {} (store: {})",
-                    collectionData.getName(), collectionName);
-
-            return QdrantVectorStore.builder(qdrantClient(), embeddingModel)
-                    .collectionName(collectionName)
-                    .initializeSchema(true)
-                    .build();
-        });
-    }
-
-    public void deleteVectorStore(ProjectData projectData) {
-        String collectionName = "project_" + projectData.getId();
+    public void deleteVectorStore(Project project) {
+        String collectionName = "project_" + project.getId();
         deleteCollection(collectionName);
     }
 
-    public void deleteVectorStore(CollectionData collectionData) {
-        String collectionName = "collection_" + collectionData.getId();
+    public void deleteVectorStore(Collection collection) {
+        String collectionName = "collection_" + collection.getId();
         deleteCollection(collectionName);
     }
 

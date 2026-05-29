@@ -1,8 +1,8 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.collection.CollectionIndexRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
-import com.andrewaleynik.ragsystem.data.entities.CollectionJpaEntity;
+import com.andrewaleynik.ragsystem.app.dto.request.collection.CollectionIndexRequest;
+import com.andrewaleynik.ragsystem.app.dto.response.TaskStatusResponse;
+import com.andrewaleynik.ragsystem.data.entities.Collection;
 import com.andrewaleynik.ragsystem.data.repositories.CollectionRepository;
 import com.andrewaleynik.ragsystem.domains.Task;
 import com.andrewaleynik.ragsystem.domains.TaskId;
@@ -22,7 +22,7 @@ public class CollectionIndexService {
     private final AsyncService asyncService;
 
     public TaskStatusResponse tryStartIndexCollection(CollectionIndexRequest request) {
-        CollectionJpaEntity entity = collectionRepository.findById(request.id())
+        Collection entity = collectionRepository.findById(request.id())
                 .orElseThrow(() -> new EntityNotFoundException("Collection not found: " + request.id()));
 
         TaskId taskId = taskService.getTaskId(entity);

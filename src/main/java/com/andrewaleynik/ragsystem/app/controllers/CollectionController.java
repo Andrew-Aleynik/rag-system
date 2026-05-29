@@ -1,10 +1,10 @@
 package com.andrewaleynik.ragsystem.app.controllers;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.collection.*;
-import com.andrewaleynik.ragsystem.app.dto.project.response.CollectionListResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.CollectionResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.DocumentListResponse;
-import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
+import com.andrewaleynik.ragsystem.app.dto.request.collection.*;
+import com.andrewaleynik.ragsystem.app.dto.response.CollectionListResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.CollectionResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.DocumentListResponse;
+import com.andrewaleynik.ragsystem.app.dto.response.TaskStatusResponse;
 import com.andrewaleynik.ragsystem.app.services.CollectionCrudService;
 import com.andrewaleynik.ragsystem.app.services.core.CollectionIndexService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -54,11 +56,9 @@ public class CollectionController {
                     content = @Content(schema = @Schema(implementation = CollectionListResponse.class))),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<CollectionListResponse> getAllCollections(
-            @Valid CollectionRetrieveRequest request
-    ) {
+    public ResponseEntity<CollectionListResponse> getAllCollections() {
         log.info("Retrieving all collections");
-        CollectionListResponse response = collectionCrudService.retrieveCollections(request);
+        CollectionListResponse response = collectionCrudService.retrieveCollections();
         return ResponseEntity.ok(response);
     }
 
@@ -74,7 +74,7 @@ public class CollectionController {
             @PathVariable Long id
     ) {
         log.info("Retrieving collection with id: {}", id);
-        CollectionRetrieveRequest request = new CollectionRetrieveRequest();
+        CollectionRetrieveRequest request = new CollectionRetrieveRequest(List.of(id));
         CollectionListResponse response = collectionCrudService.retrieveCollections(request);
 
         if (response.collections().isEmpty()) {
@@ -98,10 +98,7 @@ public class CollectionController {
             @Valid @RequestBody CollectionUpdateRequest request
     ) {
         log.info("Updating collection with id: {}", id);
-        CollectionUpdateRequest updateRequest = new CollectionUpdateRequest(
-                id,
-                request.name()
-        );
+        CollectionUpdateRequest updateRequest = new CollectionUpdateRequest(id, request.name());
         CollectionResponse response = collectionCrudService.updateCollection(updateRequest);
         return ResponseEntity.ok(response);
     }

@@ -1,18 +1,20 @@
 package com.andrewaleynik.ragsystem.domains;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
+@Getter
 public enum ProjectType {
     GIT("git");
-    private final String name;
+    private final String sourceName;
 
-    public static ProjectType fromName(String name) {
+    public static ProjectType of(String sourceName) {
         for (ProjectType type : values()) {
-            if (type.name.equalsIgnoreCase(name)) {
+            if (type.sourceName.equalsIgnoreCase(sourceName)) {
                 return type;
             }
         }
-        throw new IllegalArgumentException("Unknown type: " + name);
+        throw new IllegalArgumentException("Unknown type: " + sourceName);
     }
 }

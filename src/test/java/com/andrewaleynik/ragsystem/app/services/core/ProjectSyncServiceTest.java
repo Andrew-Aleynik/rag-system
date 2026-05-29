@@ -1,15 +1,11 @@
 package com.andrewaleynik.ragsystem.app.services.core;
 
-import com.andrewaleynik.ragsystem.app.dto.project.request.project.ProjectSyncRequest;
-import com.andrewaleynik.ragsystem.app.dto.project.response.TaskStatusResponse;
-import com.andrewaleynik.ragsystem.data.ProjectData;
-import com.andrewaleynik.ragsystem.data.entities.ProjectJpaEntity;
-import com.andrewaleynik.ragsystem.data.mappers.CollectionMapper;
-import com.andrewaleynik.ragsystem.data.mappers.ProjectMapper;
+import com.andrewaleynik.ragsystem.app.dto.request.project.ProjectSyncRequest;
+import com.andrewaleynik.ragsystem.app.dto.response.TaskStatusResponse;
+import com.andrewaleynik.ragsystem.data.entities.Project;
 import com.andrewaleynik.ragsystem.data.repositories.CollectionRepository;
 import com.andrewaleynik.ragsystem.data.repositories.ProjectRepository;
 import com.andrewaleynik.ragsystem.domains.*;
-import com.andrewaleynik.ragsystem.factories.ProjectFactory;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,36 +31,35 @@ class ProjectSyncServiceTest {
     @Mock
     private GitRepositoryService gitRepositoryService;
     private ProjectSyncService projectSyncService;
-    private ProjectJpaEntity projectEntity;
+    private Project projectEntity;
     private ProjectSyncRequest syncRequest;
 
     @BeforeEach
     void setUp() {
-        ProjectMapper projectMapper = new ProjectMapper();
-        CollectionMapper collectionMapper = new CollectionMapper();
         taskService = spy(new TaskService(60000, 1));
         AsyncService asyncService = spy(
-                new AsyncService(projectRepository, collectionRepository, projectMapper, collectionMapper, taskService,
+                new AsyncService(projectRepository, collectionRepository, taskService,
                         gitRepositoryService, null));
         projectSyncService = new ProjectSyncService(
                 projectRepository, taskService, asyncService
         );
-        projectEntity = new ProjectFactory()
-                .withId(1L)
-                .withName("test-project")
-                .withUrl("https://github.com/test/test.git")
-                .withType(ProjectType.GIT)
-                .withDefaultBranch("master")
-                .withLocalPath("/tmp/test")
-                .createEntity();
+        projectEntity = Project.builder()
+                .id(1L)
+                .name("test-project")
+                .url("https://github.com/test/test.git")
+                .type(ProjectType.GIT)
+                .defaultBranch("master")
+                .localPath("/tmp/test")
+                .build();
 
-        syncRequest = new ProjectSyncRequest(1L);
+        syncRequest = new ProjectSyncRequest(1L, null, null);
     }
 
     @Test
     void tryStartSyncProject_shouldReturnQueued_whenTaskAccepted() {
         when(projectRepository.findById(1L)).thenReturn(Optional.of(projectEntity));
         doReturn(true).when(taskService).tryAddTask(any(Task.class));
+        doReturn(Optional.of(mock(Task.class))).when(taskService).getTask(any());
 
         TaskStatusResponse response = projectSyncService.tryStartSyncProject(syncRequest);
 
@@ -103,17 +98,18 @@ class ProjectSyncServiceTest {
         doNothing().when(taskService).updateStatus(any(), any());
         doNothing().when(taskService).acquireSemaphore(any());
         doNothing().when(taskService).releaseSemaphore(any());
-        doNothing().when(gitRepositoryService).syncProject(any(ProjectDomain.class));
-        doNothing().when(gitRepositoryService).updateRepositoryInfo(any(ProjectDomain.class));
-        when(projectRepository.save(any(ProjectJpaEntity.class))).thenReturn(projectEntity);
+        doReturn(Optional.of(mock(Task.class))).when(taskService).getTask(any());
+        doNothing().when(gitRepositoryService).syncProject(any(Project.class), nullable(String.class), nullable(String.class));
+        doNothing().when(gitRepositoryService).updateRepositoryInfo(any(Project.class));
+        when(projectRepository.save(any(Project.class))).thenReturn(projectEntity);
 
         TaskStatusResponse response = projectSyncService.tryStartSyncProject(syncRequest);
 
         assertEquals(TaskStatus.QUEUED, response.status());
-        verify(taskService, timeout(2000)).updateStatus(new TaskId(ProjectData.class, 1L), TaskStatus.DONE);
-        verify(gitRepositoryService, timeout(2000)).syncProject(any(ProjectDomain.class));
-        verify(gitRepositoryService, timeout(2000)).updateRepositoryInfo(any(ProjectDomain.class));
-        verify(projectRepository, timeout(2000)).save(any(ProjectJpaEntity.class));
-        verify(taskService, timeout(2000)).updateStatus(new TaskId(ProjectData.class, 1L), TaskStatus.DONE);
+        verify(taskService, timeout(2000)).updateStatus(new TaskId(Project.class, 1L), TaskStatus.DONE);
+        verify(gitRepositoryService, timeout(2000)).syncProject(any(Project.class), nullable(String.class), nullable(String.class));
+        verify(gitRepositoryService, timeout(2000)).updateRepositoryInfo(any(Project.class));
+        verify(projectRepository, timeout(2000)).save(any(Project.class));
+        verify(taskService, timeout(2000)).updateStatus(new TaskId(Project.class, 1L), TaskStatus.DONE);
     }
 }

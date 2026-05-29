@@ -1,0 +1,1 @@
+docker exec -it ragsystem-postgres psql -U postgres ragsystem

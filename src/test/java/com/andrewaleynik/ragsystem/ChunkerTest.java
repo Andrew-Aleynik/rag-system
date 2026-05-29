@@ -4,10 +4,9 @@ import com.andrewaleynik.ragsystem.chunkers.AstChunker;
 import com.andrewaleynik.ragsystem.chunkers.Chunker;
 import com.andrewaleynik.ragsystem.chunkers.DefaultChunker;
 import com.andrewaleynik.ragsystem.config.AnalyzerConfig;
-import com.andrewaleynik.ragsystem.domains.ChunkDomain;
-import com.andrewaleynik.ragsystem.domains.DocumentDomain;
+import com.andrewaleynik.ragsystem.data.entities.Chunk;
+import com.andrewaleynik.ragsystem.data.entities.Document;
 import com.andrewaleynik.ragsystem.exceptions.ChunkingException;
-import com.andrewaleynik.ragsystem.factories.DocumentFactory;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -25,13 +24,13 @@ class ChunkerTest {
     @ParameterizedTest
     @MethodSource("chunkersSamples")
     void testChunker(Chunker chunker, URL sampleResource) throws IOException {
-        DocumentDomain document = new DocumentFactory()
-                .withId(1L)
-                .withLocalPath(sampleResource.getPath())
-                .createDomain();
+        Document document = Document.builder()
+                .id(1L)
+                .localPath(sampleResource.getPath())
+                .build();
         try {
-            List<ChunkDomain> chunks = chunker.chunkDocument(document);
-            for (ChunkDomain chunk : chunks) {
+            List<Chunk> chunks = chunker.chunkDocument(document);
+            for (Chunk chunk : chunks) {
                 System.out.println("=".repeat(70));
                 System.out.println(chunk.getIndex());
                 System.out.println(chunk.getStructural());
@@ -46,10 +45,22 @@ class ChunkerTest {
 
     static Stream<Arguments> chunkersSamples() {
         return Stream.of(
+                Arguments.of(new AstChunker(analyzerConfig.createJavaFileAnalyzer(), 5000, 700, 0.1f),
+                        ChunkerTest.class.getClassLoader().getResource("samples/sample1.java")),
                 Arguments.of(new AstChunker(analyzerConfig.createJavaFileAnalyzer(), 700, 200, 0.1f),
+                        ChunkerTest.class.getClassLoader().getResource("samples/sample2.java")),
+                Arguments.of(new AstChunker(analyzerConfig.createJavaFileAnalyzer(), 700, 200, 0.1f),
+                        ChunkerTest.class.getClassLoader().getResource("samples/sample3.java")),
+                Arguments.of(new AstChunker(analyzerConfig.createJavaFileAnalyzer(), 700, 200, 0.1f),
+                        ChunkerTest.class.getClassLoader().getResource("samples/sample4.java")),
+                Arguments.of(new DefaultChunker(700, 0.1f),
                         ChunkerTest.class.getClassLoader().getResource("samples/sample1.java")),
                 Arguments.of(new DefaultChunker(700, 0.1f),
-                        ChunkerTest.class.getClassLoader().getResource("samples/sample1.java"))
+                        ChunkerTest.class.getClassLoader().getResource("samples/sample2.java")),
+                Arguments.of(new DefaultChunker(700, 0.1f),
+                        ChunkerTest.class.getClassLoader().getResource("samples/sample3.java")),
+                Arguments.of(new DefaultChunker(700, 0.1f),
+                        ChunkerTest.class.getClassLoader().getResource("samples/sample4.java"))
         );
     }
 }
