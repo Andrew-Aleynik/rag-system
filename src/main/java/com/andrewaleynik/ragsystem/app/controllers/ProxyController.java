@@ -3,146 +3,220 @@ package com.andrewaleynik.ragsystem.app.controllers;
 import com.andrewaleynik.ragsystem.app.dto.request.AugmentRequest;
 import com.andrewaleynik.ragsystem.app.dto.response.AugmentResponse;
 import com.andrewaleynik.ragsystem.app.services.rag.AugmentService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpRequest;
-import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.http.MediaType;
+import org.springframework.util.StreamUtils;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.core.publisher.Mono;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.Enumeration;
+import java.util.Locale;
+import java.util.Set;
 
 @Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/proxy")
+@Tag(name = "Proxy", description = "LLM proxy with automatic RAG context injection")
 public class ProxyController {
+
+    private static final Set<String> HOP_BY_HOP_HEADERS = Set.of(
+            "connection",
+            "keep-alive",
+            "proxy-authenticate",
+            "proxy-authorization",
+            "te",
+            "trailers",
+            "transfer-encoding",
+            "upgrade",
+            "host",
+            "content-length",
+            "content-encoding",
+            "x-proxy-protocol"
+    );
+
     private final AugmentService augmentService;
-    private final WebClient webClient;
+    private final RestClient proxyRestClient;
 
-    @RequestMapping("/**")
-    public Mono<Void> proxyRequest(
-            ServerHttpRequest request,
-            ServerHttpResponse response,
-            @RequestHeader(value = "X-Proxy-Protocol", required = false) String protocol
-    ) {
-        String targetHostAndPath = extractTargetHostAndPath(request);
-
-        if (targetHostAndPath == null || targetHostAndPath.isEmpty()) {
-            response.setStatusCode(HttpStatus.BAD_REQUEST);
-            String errorBody = "{\"error\": \"Usage: /api/proxy/{target_url}\"}";
-            return response.writeWith(
-                    Mono.just(response.bufferFactory().wrap(errorBody.getBytes()))
-            );
+    @RequestMapping("/{*target}")
+    @Operation(
+            summary = "Proxy request to LLM with RAG augmentation",
+            description = "Forwards the request to {protocol}://{target}. "
+                    + "Chat-completions bodies are augmented with retrieved context. "
+                    + "Set X-Proxy-Protocol header to http or https (default: https)."
+    )
+    public void proxyRequest(
+            @Parameter(description = "Target host and path, e.g. api.openai.com/v1/chat/completions")
+            @PathVariable("target") String target,
+            @RequestHeader(value = "X-Proxy-Protocol", required = false) String protocol,
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) throws IOException {
+        String targetHostAndPath = normalizeTarget(target);
+        if (!StringUtils.hasText(targetHostAndPath)) {
+            writeError(response, HttpStatus.BAD_REQUEST, "Usage: /api/v1/proxy/{host}/{path}");
+            return;
         }
 
-        String usedProtocol = determineProtocol(protocol);
-        String targetUrl = usedProtocol + "://" + targetHostAndPath;
+        String targetUrl = buildTargetUrl(protocol, targetHostAndPath, request.getQueryString());
+        HttpMethod method = HttpMethod.valueOf(request.getMethod());
 
-        String queryString = request.getURI().getQuery();
-        if (queryString != null && !queryString.isEmpty()) {
-            targetUrl += "?" + queryString;
-        }
+        byte[] originalBody = StreamUtils.copyToByteArray(request.getInputStream());
+        String originalBodyJson = new String(originalBody, StandardCharsets.UTF_8);
+        String modifiedBody = modify(originalBodyJson);
 
-        log.info("Proxying {} {} -> {}", request.getMethod(), targetHostAndPath, targetUrl);
-
+        log.info("Proxying {} {} -> {}", method, request.getRequestURI(), targetUrl);
         long startTime = System.currentTimeMillis();
-        String finalTargetUrl = targetUrl;
-        return extractBody(request)
-                .flatMap(originalBody -> {
-                    log.debug("Original request body: {}", originalBody);
 
-                    String modifiedBody = modify(originalBody);
-                    log.debug("Modified request body: {}", modifiedBody);
+        try {
+            RestClient.RequestBodySpec requestSpec = proxyRestClient
+                    .method(method)
+                    .uri(targetUrl)
+                    .headers(headers -> copyRequestHeaders(request, headers, modifiedBody));
 
-                    return webClient
-                            .method(request.getMethod())
-                            .uri(finalTargetUrl)
-                            .headers(headers -> proxyReactiveHeaders(request.getHeaders(), headers))
-                            .bodyValue(modifiedBody)
-                            .exchangeToMono(clientResponse -> {
-                                long duration = System.currentTimeMillis() - startTime;
-                                response.setStatusCode(clientResponse.statusCode());
-                                response.getHeaders().putAll(clientResponse.headers().asHttpHeaders());
-                                log.info("Response: {} ({} ms)", clientResponse.statusCode(), duration);
-                                return response.writeWith(clientResponse.bodyToFlux(DataBuffer.class));
-                            });
-                })
-                .onErrorResume(WebClientResponseException.class, e -> {
-                    log.error("Proxy error: {} - {}", e.getStatusCode(), e.getMessage());
-                    response.setStatusCode(e.getStatusCode());
-                    response.getHeaders().putAll(e.getHeaders());
-                    return response.writeWith(
-                            Mono.just(response.bufferFactory().wrap(e.getResponseBodyAsByteArray()))
-                    );
-                })
-                .onErrorResume(Exception.class, e -> {
-                    log.error("Proxy error: {}", e.getMessage(), e);
-                    response.setStatusCode(HttpStatus.BAD_GATEWAY);
-                    String errorBody = String.format(
-                            "{\"error\": \"%s\"}",
-                            e.getMessage()
-                    );
-                    return response.writeWith(
-                            Mono.just(response.bufferFactory().wrap(errorBody.getBytes()))
-                    );
+            if (shouldSendBody(method, modifiedBody)) {
+                requestSpec.body(modifiedBody.getBytes(StandardCharsets.UTF_8));
+            }
+
+            requestSpec.exchange((clientRequest, clientResponse) -> {
+                response.setStatus(clientResponse.getStatusCode().value());
+                copyResponseHeaders(clientResponse.getHeaders(), response);
+
+                InputStream bodyStream = clientResponse.getBody();
+                if (bodyStream != null) {
+                    StreamUtils.copy(bodyStream, response.getOutputStream());
+                }
+                response.flushBuffer();
+
+                long duration = System.currentTimeMillis() - startTime;
+                log.info("Proxy response: {} ({} ms)", clientResponse.getStatusCode(), duration);
+                return null;
+            });
+        } catch (RestClientResponseException e) {
+            log.error("Proxy upstream error: {} - {}", e.getStatusCode(), e.getMessage());
+            if (!response.isCommitted()) {
+                response.setStatus(e.getStatusCode().value());
+                e.getResponseHeaders().forEach((name, values) -> {
+                    if (!isHopByHop(name)) {
+                        values.forEach(value -> response.addHeader(name, value));
+                    }
                 });
+                byte[] errorBody = e.getResponseBodyAsByteArray();
+                if (errorBody.length > 0) {
+                    response.getOutputStream().write(errorBody);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Proxy error: {}", e.getMessage(), e);
+            if (!response.isCommitted()) {
+                writeError(response, HttpStatus.BAD_GATEWAY, e.getMessage());
+            }
+        }
+    }
+
+    private boolean shouldSendBody(HttpMethod method, String body) {
+        return StringUtils.hasText(body)
+                && method != HttpMethod.GET
+                && method != HttpMethod.HEAD
+                && method != HttpMethod.OPTIONS
+                && method != HttpMethod.TRACE;
     }
 
     private String modify(String originalBodyJson) {
-        AugmentRequest request = new AugmentRequest(originalBodyJson);
-        AugmentResponse response = augmentService.augment(request);
-        return response.augmentedRequestBody();
-    }
-
-    private Mono<String> extractBody(ServerHttpRequest request) {
-        return DataBufferUtils.join(request.getBody())
-                .map(dataBuffer -> {
-                    byte[] bytes = new byte[dataBuffer.readableByteCount()];
-                    dataBuffer.read(bytes);
-                    DataBufferUtils.release(dataBuffer);
-                    return new String(bytes, StandardCharsets.UTF_8);
-                })
-                .defaultIfEmpty("");
-    }
-
-    private String extractTargetHostAndPath(ServerHttpRequest request) {
-        String fullPath = request.getURI().toString();
-        int proxyIndex = fullPath.indexOf("proxy/");
-
-        if (proxyIndex != -1) {
-            return fullPath.substring(proxyIndex);
+        if (!StringUtils.hasText(originalBodyJson)) {
+            return originalBodyJson;
         }
+        AugmentResponse augmentResponse = augmentService.augment(new AugmentRequest(originalBodyJson));
+        return augmentResponse.augmentedRequestBody();
+    }
 
-        return null;
+    private String normalizeTarget(String target) {
+        if (target == null) {
+            return null;
+        }
+        String normalized = target.startsWith("/") ? target.substring(1) : target;
+        int queryIndex = normalized.indexOf('?');
+        if (queryIndex >= 0) {
+            normalized = normalized.substring(0, queryIndex);
+        }
+        return normalized;
+    }
+
+    private String buildTargetUrl(String protocolHeader, String targetHostAndPath, String queryString) {
+        String protocol = determineProtocol(protocolHeader);
+        StringBuilder url = new StringBuilder(protocol)
+                .append("://")
+                .append(targetHostAndPath);
+        if (StringUtils.hasText(queryString)) {
+            url.append('?').append(queryString);
+        }
+        return url.toString();
     }
 
     private String determineProtocol(String headerProtocol) {
-        if (headerProtocol != null && !headerProtocol.isEmpty()) {
-            return headerProtocol;
+        if (!StringUtils.hasText(headerProtocol)) {
+            return "https";
         }
-
+        String normalized = headerProtocol.trim().toLowerCase(Locale.ROOT);
+        if ("http".equals(normalized) || "https".equals(normalized)) {
+            return normalized;
+        }
         return "https";
     }
 
-    private void proxyReactiveHeaders(HttpHeaders source, HttpHeaders target) {
-        List<String> excludedHeaders = List.of("host", "connection", "content-length", "transfer-encoding");
+    private void copyRequestHeaders(HttpServletRequest request, HttpHeaders target, String body) {
+        Enumeration<String> headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String name = headerNames.nextElement();
+            if (isHopByHop(name)) {
+                continue;
+            }
+            Enumeration<String> values = request.getHeaders(name);
+            while (values.hasMoreElements()) {
+                target.add(name, values.nextElement());
+            }
+        }
+        if (StringUtils.hasText(body)) {
+            target.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            target.setContentLength(body.getBytes(StandardCharsets.UTF_8).length);
+        }
+        target.set("X-Proxy-By", "RAGSystem");
+    }
 
-        source.forEach((key, values) -> {
-            if (!excludedHeaders.contains(key.toLowerCase())) {
-                target.addAll(key, values);
+    private void copyResponseHeaders(HttpHeaders source, HttpServletResponse response) {
+        source.forEach((name, values) -> {
+            if (!isHopByHop(name)) {
+                values.forEach(value -> response.addHeader(name, value));
             }
         });
-        target.add("X-Proxy-By", "ReactiveProxy");
-        target.remove("content-length");
+    }
+
+    private boolean isHopByHop(String headerName) {
+        return headerName != null && HOP_BY_HOP_HEADERS.contains(headerName.toLowerCase(Locale.ROOT));
+    }
+
+    private void writeError(HttpServletResponse response, HttpStatus status, String message) throws IOException {
+        response.setStatus(status.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        String safeMessage = message == null ? "Unknown error" : message.replace("\"", "'");
+        String errorBody = "{\"error\":\"" + safeMessage + "\"}";
+        response.getOutputStream().write(errorBody.getBytes(StandardCharsets.UTF_8));
     }
 }
